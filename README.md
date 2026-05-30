@@ -1,20 +1,36 @@
 # lettermint-django
 
-Django email backend for [Lettermint](https://lettermint.co/) - send Django emails via the Lettermint API.
+[![PyPI version](https://img.shields.io/pypi/v/lettermint-django.svg)](https://pypi.org/project/lettermint-django/)
+[![Tests](https://github.com/zzinnovate/lettermint-django/actions/workflows/run-tests.yml/badge.svg?branch=main)](https://github.com/zzinnovate/lettermint-django/actions/workflows/run-tests.yml)
+[![codecov](https://codecov.io/gh/zzinnovate/lettermint-django/graph/badge.svg)](https://codecov.io/gh/zzinnovate/lettermint-django)
+![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
 
-## Installation
+An unofficial Django email backend for [Lettermint](https://lettermint.co/) — send Django emails via the Lettermint API instead of SMTP.
+
+Built and maintained by [zzinnovate](https://github.com/zzinnovate). Not affiliated with Lettermint.
+
+## Requirements
+
+- Python 3.11+
+- Django 4.2+
+- [lettermint](https://github.com/lettermint/lettermint-python) 2.0+
+
+## Install
 
 ```bash
 pip install lettermint-django
+
+# For development (includes testing tools)
+pip install -e ".[dev]"
 ```
 
-## Configuration
-
-Add to your Django settings:
+## Quick start
 
 ```python
+import os
+
 EMAIL_BACKEND = "lettermint_django.LettermintEmailBackend"
-LETTERMINT_API_KEY = "lm_your_api_key"
+LETTERMINT_API_KEY = os.getenv("LETTERMINT_API_KEY")
 ```
 
 That's it. All `send_mail()`, `EmailMessage`, and `EmailMultiAlternatives` calls in Django will now route through Lettermint.
@@ -60,11 +76,18 @@ msg.attach_alternative("<h1>Hello!</h1>", "text/html")
 msg.send()
 ```
 
-## Requirements
+## Contributing
 
-- Python 3.11+
-- Django 4.2+
-- [lettermint](https://github.com/lettermint/lettermint-python) 2.0+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, and workflow guidelines.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities and best practices.
+
+## Credits
+
+- [Sjoerd Zaalberg van Zelst](https://github.com/sjoerdzzid) (zzinnovate)
+- [All contributors](https://github.com/zzinnovate/lettermint-django/graphs/contributors)
 
 ## License
 
