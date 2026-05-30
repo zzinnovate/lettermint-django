@@ -1,3 +1,4 @@
 # lettermint-django - Core Library Dependencies
 lettermint>=2.0.0
 django>=4.2
+typing_extensions>=4.0

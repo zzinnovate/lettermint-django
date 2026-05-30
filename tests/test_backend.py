@@ -11,7 +11,7 @@ from lettermint_django import LettermintEmailBackend
 @pytest.fixture
 def mock_lettermint():
     """Patch the Lettermint SDK client."""
-    with patch("lettermint_django.backend.Lettermint") as mock_cls:
+    with patch("lettermint.Lettermint") as mock_cls:
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
         # Chain .email.from_().to_().subject()... all return a fluent mock

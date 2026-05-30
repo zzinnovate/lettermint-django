@@ -170,14 +170,12 @@ class LettermintEmailBackend(BaseEmailBackend):
         """Return a normalized 'Display Name <email>' address string."""
         display_name, email_address = parseaddr(str(address or ""))
         email_address = email_address.strip()
-        if not email_address:
+        if not email_address or "@" not in email_address:
             raise ImproperlyConfigured(
                 f"Invalid sender address: {address!r}. "
                 "DEFAULT_FROM_EMAIL must contain a valid email address."
             )
-        display_name = (display_name or "").strip() or str(
-            getattr(settings, "SITE_NAME", "")
-        ).strip()
+        display_name = (display_name or "").strip()
         if display_name:
             return formataddr((display_name, email_address))
         return email_address
