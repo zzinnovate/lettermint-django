@@ -6,7 +6,7 @@
 ![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
 ![Django Version](https://img.shields.io/badge/django-4.2%20%7C%205.x%20%7C%206.x-092E20)
 
-An unofficial Django email backend for [Lettermint](https://lettermint.co/) — send Django emails via the Lettermint API instead of SMTP.
+An unofficial Django email backend for [Lettermint](https://lettermint.co/). Drop it in as your `EMAIL_BACKEND` and all Django mail (`send_mail()`, `EmailMessage`, `EmailMultiAlternatives`) routes through the Lettermint API. Supports per-message routing, HTML emails, attachments, and reply-to headers with no changes to your existing email code.
 
 Built and maintained by [zzinnovate](https://github.com/zzinnovate). Not affiliated with Lettermint.
 
@@ -14,9 +14,9 @@ Built and maintained by [zzinnovate](https://github.com/zzinnovate). Not affilia
 
 📖 **[View Full Documentation →](https://zzinnovate.github.io/lettermint-django/)**
 
-- **Getting Started** — [Installation](https://zzinnovate.github.io/lettermint-django/getting-started/installation/) • [Configuration](https://zzinnovate.github.io/lettermint-django/getting-started/configuration/) • [Usage](https://zzinnovate.github.io/lettermint-django/getting-started/usage/)
-- **Reference** — [Settings](https://zzinnovate.github.io/lettermint-django/reference/settings/) • [Backend](https://zzinnovate.github.io/lettermint-django/reference/backend/)
-- **Project** — [Contributing](https://zzinnovate.github.io/lettermint-django/project/contributing/) • [Changelog](https://zzinnovate.github.io/lettermint-django/project/changelog/) • [Security](https://zzinnovate.github.io/lettermint-django/project/security/)
+- **Getting Started**: [Installation](https://zzinnovate.github.io/lettermint-django/getting-started/installation/) • [Configuration](https://zzinnovate.github.io/lettermint-django/getting-started/configuration/) • [Usage](https://zzinnovate.github.io/lettermint-django/getting-started/usage/)
+- **Reference**: [Settings](https://zzinnovate.github.io/lettermint-django/reference/settings/) • [Backend](https://zzinnovate.github.io/lettermint-django/reference/backend/)
+- **Project**: [Contributing](https://zzinnovate.github.io/lettermint-django/project/contributing/) • [Changelog](https://zzinnovate.github.io/lettermint-django/project/changelog/) • [Security](https://zzinnovate.github.io/lettermint-django/project/security/)
 
 ## Requirements
 
@@ -94,6 +94,8 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for developmen
 See [SECURITY.md](SECURITY.md) for reporting vulnerabilities and best practices.
 
 ## Credits
+
+This package is built on top of the official [lettermint Python SDK](https://github.com/lettermint/lettermint-python), which handles all API communication. 
 
 - [Sjoerd Zaalberg van Zelst](https://github.com/sjoerdzzid) (zzinnovate)
 - [All contributors](https://github.com/zzinnovate/lettermint-django/graphs/contributors)
