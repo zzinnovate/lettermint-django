@@ -19,8 +19,8 @@ Built and maintained by [zzinnovate](https://github.com/zzinnovate). Not affilia
 
 ## Requirements
 
-- Python 3.11+
-- Django 4.2+
+- Python 3.11+ (Django 6 requires Python 3.12+)
+- Django 4.2, 5.x, or 6.x
 - [lettermint](https://github.com/lettermint/lettermint-python) 2.0+
 
 ## Install

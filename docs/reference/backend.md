@@ -1,11 +1,11 @@
 # Backend
 
-`LettermintEmailBackend` is a Django email backend that sends mail via the Lettermint HTTP API.
+`LettermintEmailBackend` is a Django email backend that sends mail via the Lettermint HTTP API. It subclasses `BaseEmailBackend` and integrates with Django's standard `send_mail` and `EmailMessage` interfaces. It supports attachments, CC/BCC, reply-to, custom headers, and per-message route overrides out of the box.
 
 ## Class
 
 ```
-lettermint_django.LettermintEmailBackend
+lettermint_django.LettermintEmailBackend 
 ```
 
 Subclasses `django.core.mail.backends.base.BaseEmailBackend`.

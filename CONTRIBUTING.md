@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for taking the time to contribute. This project aims to be small, focused, and well-tested.
+Contributions are welcome. This project aims to be small, focused, and well-tested.
 
 ## Development Setup
 
@@ -21,11 +21,12 @@ pytest --cov --cov-report=term-missing
 ## Workflow
 
 1. Fork and clone the repo
-2. Create a feature branch: `git checkout -b feat/short-slug`
-3. Make changes with tests. Put tests under `tests/`.
-4. Run the suite until green.
-5. Commit with a clear message: `git commit -m "feat: add reply-to support"`
-6. Push and open a PR against `main`.
+2. Always branch from `main`. Never commit directly to `main`.
+3. Create a feature branch: `git checkout -b feat/short-slug`
+4. Make changes with tests. Put tests under `tests/`.
+5. Run the suite until green.
+6. Commit with a clear message: `git commit -m "feat: add reply-to support"`
+7. Push and open a PR against `main`.
 
 ## Guidelines
 

@@ -1,8 +1,8 @@
 # lettermint-django
 
-An unofficial Django email backend for the [Lettermint](https://lettermint.co/) API. Drop SMTP:  send Django emails directly via the Lettermint API with one setting change.
+An unofficial Django email backend for the [Lettermint](https://lettermint.co/) API. Sends Django emails directly via the Lettermint API with one setting change.
 
-Maintained by [zzinnovate](https://github.com/zzinnovate). Open source, community-friendly, and actively maintained. Not affiliated with Lettermint.
+Open source, not affiliated with Lettermint. Maintained by [zzinnovate](https://github.com/zzinnovate). 
 
 ## Quick start
 
