@@ -9,6 +9,14 @@ An unofficial Django email backend for [Lettermint](https://lettermint.co/) — 
 
 Built and maintained by [zzinnovate](https://github.com/zzinnovate). Not affiliated with Lettermint.
 
+## Documentation
+
+📖 **[View Full Documentation →](https://zzinnovate.github.io/lettermint-django/)**
+
+- **Getting Started** — [Installation](https://zzinnovate.github.io/lettermint-django/getting-started/installation/) • [Configuration](https://zzinnovate.github.io/lettermint-django/getting-started/configuration/) • [Usage](https://zzinnovate.github.io/lettermint-django/getting-started/usage/)
+- **Reference** — [Settings](https://zzinnovate.github.io/lettermint-django/reference/settings/) • [Backend](https://zzinnovate.github.io/lettermint-django/reference/backend/)
+- **Project** — [Contributing](https://zzinnovate.github.io/lettermint-django/project/contributing/) • [Changelog](https://zzinnovate.github.io/lettermint-django/project/changelog/) • [Security](https://zzinnovate.github.io/lettermint-django/project/security/)
+
 ## Requirements
 
 - Python 3.11+

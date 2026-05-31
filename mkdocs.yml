@@ -1,0 +1,97 @@
+site_name: lettermint-django
+site_description: Unofficial Django email backend for the Lettermint API
+site_url: https://zzinnovate.github.io/lettermint-django/
+use_directory_urls: true
+repo_name: zzinnovate/lettermint-django
+repo_url: https://github.com/zzinnovate/lettermint-django
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+nav:
+  - Getting Started:
+      - Overview: index.md
+      - Installation: getting-started/installation.md
+      - Configuration: getting-started/configuration.md
+      - Usage: getting-started/usage.md
+  - Reference:
+      - Settings: reference/settings.md
+      - Backend: reference/backend.md
+  - Project:
+      - Contributing: project/contributing.md
+      - Changelog: project/changelog.md
+      - License: project/license.md
+      - Security: project/security.md
+
+copyright: "© 2026 zzinnovate"
+extra:
+  author: zzinnovate
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/zzinnovate/lettermint-django
+    - icon: fontawesome/solid/code
+      link: https://pypi.org/project/lettermint-django
+  homepage: https://github.com/zzinnovate/lettermint-django
+
+watch:
+  - lettermint_django
+  - docs
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - def_list
+  - footnotes
+  - attr_list
+  - md_in_html
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed
+  - pymdownx.emoji
+
+plugins:
+  - search
+  - include-markdown
+
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
+  features:
+    - content.code.copy
+    - navigation.tabs
+    - navigation.expand
+    - toc.integrate
+    - navigation.footer
+    - header.autohide
+    - content.code.annotate
+  icon:
+    admonition:
+      note: octicons/tag-16
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+extra_css:
+  - assets/style.css
+
+strict: true
