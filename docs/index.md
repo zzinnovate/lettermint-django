@@ -1,8 +1,14 @@
 # lettermint-django
 
-An unofficial Django email backend for the [Lettermint](https://lettermint.co/) API. Sends Django emails directly via the Lettermint API with one setting change.
+An unofficial Django email backend for the [Lettermint](https://lettermint.co/) API. Open source, not affiliated with Lettermint. Maintained by [zzinnovate](https://github.com/zzinnovate). 
 
-Open source, not affiliated with Lettermint. Maintained by [zzinnovate](https://github.com/zzinnovate). 
+[![PyPI version](https://img.shields.io/pypi/v/lettermint-django.svg)](https://pypi.org/project/lettermint-django/)
+[![Tests](https://github.com/zzinnovate/lettermint-django/actions/workflows/run-tests.yml/badge.svg?branch=main)](https://github.com/zzinnovate/lettermint-django/actions/workflows/run-tests.yml)
+[![codecov](https://codecov.io/gh/zzinnovate/lettermint-django/graph/badge.svg)](https://codecov.io/gh/zzinnovate/lettermint-django)
+![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
+![Django Version](https://img.shields.io/badge/django-4.2%20%7C%205.x%20%7C%206.x-092E20)
+
+
 
 ## Quick start
 
