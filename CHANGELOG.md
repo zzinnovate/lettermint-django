@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.0] - 2026-06-03
+## [0.2.0-alpha] - 2026-06-03
 
 ### Changed
 
@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Comprehensive documentation: installation, configuration, and usage guides
+- Documentation: installation, configuration, and usage guides
 - GitHub Actions CI workflows for automated testing and MkDocs deployment
 
 ## [0.1.0] - 2026-05-30
