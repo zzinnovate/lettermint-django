@@ -2,24 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.2.1-alpha] - Unreleased
-
-### Planned
-
-- Upcoming fixes and improvements
-
-## [0.2.0-alpha] - 2026-06-03
+## [0.2.1-alpha] - 2026-06-03
 
 ### Changed
 
-- Refactored `LettermintEmailBackend` for improved code clarity: extracted string coercion logic to `_coerce_str()` method and simplified connection checks
+- Refactored `LettermintEmailBackend`: extracted string coercion logic to `_coerce_str()` method and simplified connection checks
 - Removed unused `content_id` parameter from internal attachment handling
 - Added type hints to client kwargs dict
 
+### Tested
+
+- Successfully sent first emails through Lettermint on testing environment
+
+## [0.2.0] - 2026-06-03
+
 ### Added
 
-- Documentation: installation, configuration, and usage guides
-- GitHub Actions CI workflows for automated testing and MkDocs deployment
+- Documentation with getting started guides (installation, configuration, usage)
+- MkDocs site generation and GitHub Actions deployment workflow
 
 ## [0.1.0] - 2026-05-30
 
