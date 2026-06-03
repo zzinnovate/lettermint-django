@@ -2,6 +2,7 @@
 
 import base64
 from email.utils import formataddr, parseaddr
+from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -25,18 +26,9 @@ class LettermintEmailBackend(BaseEmailBackend):
     """
 
     def __init__(self, *args, **kwargs):
-        api_token = kwargs.pop("api_token", None) or getattr(settings, "LETTERMINT_API_KEY", None)
-        if isinstance(api_token, str):
-            api_token = api_token.strip() or None
-
-        base_url = kwargs.pop("base_url", None) or getattr(settings, "LETTERMINT_BASE_URL", None)
-        if isinstance(base_url, str):
-            base_url = base_url.strip() or None
-
-        route = kwargs.pop("route", None) or getattr(settings, "LETTERMINT_ROUTE", None)
-        if isinstance(route, str):
-            route = route.strip() or None
-
+        api_token = self._coerce_str(kwargs.pop("api_token", None) or getattr(settings, "LETTERMINT_API_KEY", None))
+        base_url = self._coerce_str(kwargs.pop("base_url", None) or getattr(settings, "LETTERMINT_BASE_URL", None))
+        route = self._coerce_str(kwargs.pop("route", None) or getattr(settings, "LETTERMINT_ROUTE", None))
         timeout = kwargs.pop("timeout", None) or getattr(settings, "LETTERMINT_TIMEOUT", None)
 
         self.api_token = api_token
@@ -67,7 +59,7 @@ class LettermintEmailBackend(BaseEmailBackend):
                 "The 'lettermint' package is not installed. Run: pip install lettermint"
             ) from exc
 
-        client_kwargs = {"api_token": self.api_token}
+        client_kwargs: dict[str, Any] = {"api_token": self.api_token}
         if self.base_url:
             client_kwargs["base_url"] = self.base_url
         if self.timeout is not None:
@@ -90,7 +82,7 @@ class LettermintEmailBackend(BaseEmailBackend):
         if not email_messages:
             return 0
 
-        if self.connection is None and self.open() is False and self.connection is None:
+        if self.connection is None and self.open() is False:
             return 0
 
         sent = 0
@@ -106,6 +98,9 @@ class LettermintEmailBackend(BaseEmailBackend):
     def _send(self, email_message):
         """Send a single Django EmailMessage via the Lettermint SDK."""
         if not email_message.recipients():
+            return False
+
+        if self.connection is None:
             return False
 
         mail = self.connection.email
@@ -141,12 +136,9 @@ class LettermintEmailBackend(BaseEmailBackend):
         if passthrough_headers:
             mail = mail.headers(passthrough_headers)
 
-        for filename, raw_content, content_id in self._iter_attachments(email_message):
+        for filename, raw_content in self._iter_attachments(email_message):
             encoded = base64.b64encode(raw_content).decode("ascii")
-            if content_id:
-                mail = mail.attach(filename, encoded, content_id)
-            else:
-                mail = mail.attach(filename, encoded)
+            mail = mail.attach(filename, encoded)
 
         mail.send()
         return True
@@ -164,6 +156,13 @@ class LettermintEmailBackend(BaseEmailBackend):
         headers = dict(email_message.extra_headers)
         headers.pop("X-Lettermint-Route", None)
         return headers
+
+    @staticmethod
+    def _coerce_str(value):
+        """Strip whitespace from string settings and return None if empty."""
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
 
     @staticmethod
     def _normalize_address(address):
@@ -190,17 +189,15 @@ class LettermintEmailBackend(BaseEmailBackend):
 
     @staticmethod
     def _iter_attachments(email_message):
-        """Yield (filename, raw_bytes, content_id) for each attachment."""
+        """Yield (filename, raw_bytes) for each attachment."""
         for attachment in email_message.attachments:
             if isinstance(attachment, tuple):
                 filename, content, _ = attachment
-                content_id = None
             else:
                 filename = getattr(attachment, "name", "attachment")
                 content = attachment.read() if hasattr(attachment, "read") else attachment
-                content_id = None
 
             if isinstance(content, str):
                 content = content.encode()
 
-            yield filename or "attachment", content, content_id
+            yield filename or "attachment", content
