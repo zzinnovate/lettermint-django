@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-06-03
+
+### Changed
+
+- Refactored `LettermintEmailBackend` for improved code clarity: extracted string coercion logic to `_coerce_str()` method and simplified connection checks
+- Removed unused `content_id` parameter from internal attachment handling
+- Added type hints to client kwargs dict
+
+### Added
+
+- Comprehensive documentation: installation, configuration, and usage guides
+- GitHub Actions CI workflows for automated testing and MkDocs deployment
+
 ## [0.1.0] - 2026-05-30
 
 ### Added
