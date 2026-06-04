@@ -44,6 +44,16 @@ LETTERMINT_API_KEY = os.getenv("LETTERMINT_API_KEY")
 
 That's it. All `send_mail()`, `EmailMessage`, and `EmailMultiAlternatives` calls in Django will now route through Lettermint.
 
+## Roadmap
+
+This project is actively developed with a clear path toward v1.0.0. Our roadmap includes email tracking, bounce monitoring, and engagement analytics.
+
+- **Current:** v0.2.x (email backend basics)
+- **Next:** v0.3.0 (bounce & delivery tracking via webhooks)
+- **Planned:** v0.4.0 (opens, clicks, analytics) → v1.0.0 (production-ready)
+
+[View the full roadmap →](https://zzinnovate.github.io/lettermint-django/reference/roadmap/)
+
 ## Settings Reference
 
 | Setting | Required | Default | Description |

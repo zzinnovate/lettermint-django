@@ -1,6 +1,19 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [Unreleased]
+
+### Planned for v0.3.0
+
+- Email status tracking via webhooks (delivered, hard bounced, soft bounced, failed)
+- Django models: `LmEmailMessage`, `LmEmailEvent` for email history tracking
+- Webhook endpoint with Lettermint signature verification
+- Status query interface and management commands (`lettermint_email_status`, `lettermint_webhook_test`)
+- Django signals for status changes (`email_delivered`, `email_bounced`, `email_failed`)
+- Configuration: `LETTERMINT_TRACKING_ENABLED`, `LETTERMINT_WEBHOOK_SECRET`
+- Full documentation for tracking setup and webhook configuration
+- Comprehensive test suite for tracking features
+
+---
 
 ## [0.2.1-alpha] - 2026-06-03
 

@@ -17,6 +17,8 @@ nav:
   - Reference:
       - Settings: reference/settings.md
       - Backend: reference/backend.md
+      - Design: reference/design.md
+      - Roadmap: reference/roadmap.md
   - Project:
       - Contributing: project/contributing.md
       - Changelog: project/changelog.md
@@ -53,6 +55,8 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.tabbed
   - pymdownx.emoji
+  - pymdownx.tasklist:
+      custom_checkbox: true
 
 plugins:
   - search
