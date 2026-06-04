@@ -11,6 +11,8 @@ EMAIL_BACKEND = "lettermint_django.LettermintEmailBackend"
 LETTERMINT_API_KEY = os.getenv("LETTERMINT_API_KEY")
 ```
 
+No `INSTALLED_APPS` entry is needed for sending emails. Adding `lettermint_django` to `INSTALLED_APPS` is only required when using [email tracking](../reference/roadmap.md) (v0.3.0+).
+
 ## Environment variable
 
 Store your API key in an environment variable, never hard-code it:
