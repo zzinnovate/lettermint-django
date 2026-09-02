@@ -36,8 +36,9 @@ def message_events(request):
     """Verify a Lettermint webhook delivery and store the event.
 
     Responds ``400`` when the signature, timestamp or JSON body is invalid, and
-    ``200`` otherwise. ``webhook.test`` deliveries and events without a
-    ``data.message_id`` are acknowledged without being stored.
+    ``200`` otherwise. ``webhook.test``, ``message.inbound`` and events without
+    a ``data.message_id`` (suppression events) are acknowledged without being
+    stored; the JSON response says ``"stored": false`` for them.
     """
     secret = get_webhook_secret()
 

@@ -6,9 +6,9 @@ from django.utils import timezone
 from lettermint_django.models import LmEmailEvent, LmEmailMessage, LmMessageStatus
 
 
-def make_message(message_id, status=LmMessageStatus.PENDING):
+def make_message(message_id, status=LmMessageStatus.PENDING, **kwargs):
     return LmEmailMessage.objects.create(
-        message_id=message_id, from_email="a@example.com", to=["r@example.com"], status=status
+        message_id=message_id, from_email="a@example.com", to=["r@example.com"], status=status, **kwargs
     )
 
 
@@ -35,6 +35,36 @@ class TestLmEmailMessage:
         assert ids(LmEmailMessage.objects.delivered()) == {"m1"}
         assert ids(LmEmailMessage.objects.bounced()) == {"m2", "m3"}
         assert ids(LmEmailMessage.objects.failed()) == {"m4"}
+
+    def test_delivery_filters(self):
+        for message_id, status in [
+            ("pending", "pending"), ("processed", "processed"), ("delivered", "delivered"),
+            ("opened", "opened"), ("clicked", "clicked"), ("bounced", "hard_bounced"),
+            ("failed", "failed"), ("suppressed", "suppressed"),
+            ("scheduled", "scheduled"), ("canceled", "canceled"),
+        ]:
+            make_message(message_id, status)
+
+        ids = lambda qs: set(qs.values_list("message_id", flat=True))  # noqa: E731
+        assert ids(LmEmailMessage.objects.not_delivered()) == {
+            "pending", "processed", "bounced", "failed", "suppressed", "scheduled", "canceled"
+        }
+        assert ids(LmEmailMessage.objects.delivered()) == {"delivered", "opened", "clicked"}
+        assert ids(LmEmailMessage.objects.not_opened()) == {"delivered"}
+
+    def test_from_bulk(self):
+        make_message("m1", bulk_id="bulk-a")
+        make_message("m2", bulk_id="bulk-a")
+        make_message("m3", bulk_id="bulk-b")
+        make_message("m4")
+        make_event("e1", LmEmailMessage.objects.get(message_id="m1"), "message.hard_bounced")
+
+        assert LmEmailMessage.objects.from_bulk("bulk-a").count() == 2
+        assert LmEmailMessage.objects.from_bulk("bulk-a").bounced().count() == 0
+        assert LmEmailMessage.objects.from_bulk(None).count() == 0
+        assert LmEmailEvent.objects.from_bulk("bulk-a").get().event_id == "e1"
+        assert LmEmailEvent.objects.from_bulk("bulk-b").count() == 0
+        assert LmEmailEvent.objects.from_bulk("").count() == 0
 
     def test_get_status(self):
         make_message("m1", "delivered")

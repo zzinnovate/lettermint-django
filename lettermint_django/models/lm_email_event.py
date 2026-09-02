@@ -1,5 +1,9 @@
 """``LmEmailEvent``: a webhook event received from Lettermint for a message."""
 
+from __future__ import annotations
+
+from typing import Self
+
 from django.db import models
 
 from .choices import BOUNCE_EVENTS, EVENT_STATUS_MAP
@@ -7,15 +11,32 @@ from .lm_email_message import LmEmailMessage
 
 
 class LmEmailEventQuerySet(models.QuerySet):
-    def for_recipient(self, email):
+    """Filters for webhook events. One event per recipient per status change."""
+
+    def for_recipient(self, email: str) -> Self:
+        """Events about this address (case-insensitive), across all messages."""
         return self.filter(recipient__iexact=email)
 
-    def bounces(self):
+    def bounces(self) -> Self:
+        """``message.soft_bounced`` and ``message.hard_bounced`` events."""
         return self.filter(event__in=BOUNCE_EVENTS)
+
+    def from_bulk(self, bulk_id: str | None) -> Self:
+        """Events for the messages of one ``send_bulk`` call (see ``BulkResult.bulk_id``)."""
+        if not bulk_id:
+            return self.none()
+        return self.filter(email_message__bulk_id=bulk_id)
 
 
 class LmEmailEvent(models.Model):
-    """A webhook event received from Lettermint for a message."""
+    """A webhook event received from Lettermint for a message.
+
+    Stored once per Lettermint event id, so retried deliveries never duplicate.
+    ``reason`` and ``reason_code`` hold Lettermint's explanation for bounces and
+    failures (the SMTP response and enhanced status code, or ``reason`` /
+    ``reason_code`` for ``message.failed``); ``data`` keeps the raw payload.
+    ``email_message`` is ``None`` for messages not sent through this app.
+    """
 
     event_id = models.CharField(
         max_length=64, unique=True, help_text="Lettermint webhook event id, used for de-duplication."
@@ -48,14 +69,14 @@ class LmEmailEvent(models.Model):
         verbose_name = "Lettermint email event"
         verbose_name_plural = "Lettermint email events"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.event} {self.message_id} {self.recipient}".strip()
 
     @property
-    def status(self):
+    def status(self) -> str | None:
         """Message status this event maps to, or ``None`` if it does not change status."""
         return EVENT_STATUS_MAP.get(self.event)
 
     @property
-    def is_bounce(self):
+    def is_bounce(self) -> bool:
         return self.event in BOUNCE_EVENTS

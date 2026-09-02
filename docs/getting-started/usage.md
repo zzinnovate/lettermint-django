@@ -81,6 +81,20 @@ msg.send()
 
 The `X-Lettermint-Route` header takes precedence over the global `LETTERMINT_ROUTE` setting.
 
+## Per-message tag
+
+Set `X-Lettermint-Tag` to categorise a message in Lettermint, for example by campaign. With [tracking](tracking.md) installed the tag is stored on `LmEmailMessage.tag`, so `LmEmailMessage.objects.tagged("launch-2026")` returns everything sent for that campaign.
+
+```python
+msg.extra_headers["X-Lettermint-Tag"] = "launch-2026"
+```
+
+Neither header is passed on as an email header.
+
+## Many recipients
+
+To send the same mail to many people, or a personalised mail to each of them, use [bulk sending](bulk.md). It goes through Lettermint's batch endpoint, in batches of 500 messages by default.
+
 ## Sending multiple messages
 
 Django's connection can be reused across multiple sends:

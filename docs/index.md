@@ -27,12 +27,32 @@ LETTERMINT_API_KEY = os.getenv("LETTERMINT_API_KEY")
 
 That's it. All Django `send_mail()`, `EmailMessage`, and `EmailMultiAlternatives` calls now route through Lettermint.
 
+## Tracking and bulk sending (optional)
+
+Add the app, include the webhook URLs at the root of your URLconf and set the webhook secret:
+
+```python
+INSTALLED_APPS += ["lettermint_django"]
+LETTERMINT_WEBHOOK_SECRET = os.getenv("LETTERMINT_WEBHOOK_SECRET")
+
+# urls.py
+path("", include("lettermint_django.urls")),   # POST /lettermint/message-events/
+```
+
+```bash
+python manage.py migrate lettermint_django
+```
+
+Every sent message is then stored with its Lettermint `message_id`, and the webhook keeps its delivery status current: delivered, bounced, failed. See [Tracking](getting-started/tracking.md). For many recipients, `lettermint_django.bulk.send_bulk_mail()` sends one personalised message per recipient through the batch endpoint; see [Bulk sending](getting-started/bulk.md).
+
 ## Features
 
 - **No SMTP required**:  sends via the Lettermint HTTP API
 - **Django-native**:  works with all standard Django mail helpers
-- **Per-message routing**:  override the route per email via `extra_headers`
+- **Per-message routing and tags**:  override the route or set a tag per email via `extra_headers`
 - **HTML support**:  `EmailMultiAlternatives` with `text/html` alternative works out of the box
+- **Delivery tracking**:  optional app that records sent messages and their webhook events (delivered, bounced, failed), with Django signals
+- **Bulk sending**:  one mail to many or a unique mail per recipient, in batches, with per-message results
 - **Minimal dependencies**:  only `lettermint` (official SDK) on top of Django
 
 ## Common operations

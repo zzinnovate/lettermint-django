@@ -54,7 +54,7 @@ def mock_lettermint():
         mock_client.email = mock_email_builder
         for method in (
             "from_", "to", "cc", "bcc", "reply_to", "route",
-            "subject", "text", "html", "headers", "attach",
+            "subject", "text", "html", "headers", "attach", "tag", "metadata",
         ):
             getattr(mock_email_builder, method).return_value = mock_email_builder
         mock_email_builder.send.return_value = {"message_id": "msg_test_1", "status": "pending"}

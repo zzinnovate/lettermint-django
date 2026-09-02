@@ -14,7 +14,7 @@ Built and maintained by [zzinnovate](https://github.com/zzinnovate). Not affilia
 
 📖 **[View Full Documentation →](https://zzinnovate.github.io/lettermint-django/)**
 
-- **Getting Started**: [Installation](https://zzinnovate.github.io/lettermint-django/getting-started/installation/) • [Configuration](https://zzinnovate.github.io/lettermint-django/getting-started/configuration/) • [Usage](https://zzinnovate.github.io/lettermint-django/getting-started/usage/) • [Tracking](https://zzinnovate.github.io/lettermint-django/getting-started/tracking/)
+- **Getting Started**: [Installation](https://zzinnovate.github.io/lettermint-django/getting-started/installation/) • [Configuration](https://zzinnovate.github.io/lettermint-django/getting-started/configuration/) • [Usage](https://zzinnovate.github.io/lettermint-django/getting-started/usage/) • [Tracking](https://zzinnovate.github.io/lettermint-django/getting-started/tracking/) • [Bulk sending](https://zzinnovate.github.io/lettermint-django/getting-started/bulk/)
 - **Reference**: [Settings](https://zzinnovate.github.io/lettermint-django/reference/settings/) • [Backend](https://zzinnovate.github.io/lettermint-django/reference/backend/)
 - **Project**: [Contributing](https://zzinnovate.github.io/lettermint-django/project/contributing/) • [Changelog](https://zzinnovate.github.io/lettermint-django/project/changelog/) • [Security](https://zzinnovate.github.io/lettermint-django/project/security/)
 
@@ -53,22 +53,41 @@ INSTALLED_APPS += ["lettermint_django"]
 LETTERMINT_WEBHOOK_SECRET = os.getenv("LETTERMINT_WEBHOOK_SECRET")
 
 # urls.py
-path("lettermint/", include("lettermint_django.urls")),
+path("", include("lettermint_django.urls")),
 ```
 
 ```bash
 python manage.py migrate lettermint_django
 ```
 
-Point a webhook in the Lettermint dashboard at `/lettermint/message-events/`. Query `LmEmailMessage` and `LmEmailEvent`, or connect to the `lm_email_bounced` signal. See the [tracking guide](https://zzinnovate.github.io/lettermint-django/getting-started/tracking/).
+Point a webhook in the Lettermint dashboard at `/lettermint/message-events/` (change it with `LETTERMINT_WEBHOOK_PATH`). Query `LmEmailMessage` and `LmEmailEvent`, or connect to the `lm_email_bounced` signal. See the [tracking guide](https://zzinnovate.github.io/lettermint-django/getting-started/tracking/).
+
+## Bulk sending
+
+Send the same mail to many people, or a personalised mail to each of them, in batches through Lettermint's batch endpoint:
+
+```python
+from lettermint_django.bulk import send_bulk_mail
+
+result = send_bulk_mail(
+    [{"email": g.email, "name": g.name, "link": g.invite_url} for g in guests],
+    subject="{{ name }}, you are invited",
+    text_template="emails/invite.txt",
+    html_template="emails/invite.html",
+    tag="invites",
+)
+result.sent_count, result.failed   # per-message outcome, with message ids
+```
+
+See the [bulk sending guide](https://zzinnovate.github.io/lettermint-django/getting-started/bulk/).
 
 ## Roadmap
 
 This project is actively developed with a clear path toward v1.0.0. Our roadmap includes email tracking, bounce monitoring, and engagement analytics.
 
 - **Current:** v0.3.x (email backend, bounce & delivery tracking via webhooks)
-- **Next:** v0.4.0 (opens, clicks, analytics)
-- **Planned:** v1.0.0 (production-ready)
+- **Next:** v0.4.0 (bulk sending via the batch endpoint)
+- **Planned:** v0.5.0 (opens, clicks, analytics) → v1.0.0 (production-ready)
 
 [View the full roadmap →](https://zzinnovate.github.io/lettermint-django/reference/roadmap/)
 
@@ -81,6 +100,8 @@ This project is actively developed with a clear path toward v1.0.0. Our roadmap 
 | `LETTERMINT_ROUTE` | No | - | Default route applied to all outgoing emails |
 | `LETTERMINT_TIMEOUT` | No | SDK default | Request timeout in seconds |
 | `LETTERMINT_WEBHOOK_SECRET` | With tracking | - | Signing secret of your Lettermint webhook |
+| `LETTERMINT_WEBHOOK_PATH` | No | `lettermint/message-events/` | Path of the webhook endpoint |
+| `LETTERMINT_BATCH_SIZE` | No | 500 | Messages per request for bulk sending |
 
 ## Per-message Route
 

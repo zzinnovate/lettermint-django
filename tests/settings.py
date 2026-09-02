@@ -1,5 +1,9 @@
 """Minimal Django settings for the test suite."""
 
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+
 SECRET_KEY = "test-secret-key-for-lettermint-django"
 
 INSTALLED_APPS = [
@@ -22,6 +26,7 @@ MIDDLEWARE = [
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

@@ -15,6 +15,7 @@ nav:
       - Configuration: getting-started/configuration.md
       - Usage: getting-started/usage.md
       - Tracking: getting-started/tracking.md
+      - Bulk sending: getting-started/bulk.md
   - Reference:
       - Settings: reference/settings.md
       - Backend: reference/backend.md

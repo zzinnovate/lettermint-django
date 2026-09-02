@@ -39,25 +39,33 @@ from django.urls import include, path
 
 urlpatterns = [
     # ...
-    path("lettermint/", include("lettermint_django.urls")),
+    path("", include("lettermint_django.urls")),
 ]
 ```
 
-This exposes `POST /lettermint/message-events/` (URL name `lm-message-events`). The view is CSRF-exempt and only accepts POST. Any prefix works; `lettermint/` is just the example used here.
+This exposes `POST /lettermint/message-events/` (URL name `lm-message-events`). The view is CSRF-exempt and only accepts POST.
+
+The path is the setting `LETTERMINT_WEBHOOK_PATH`, so include the URLs at the root and change the setting to move the endpoint:
+
+```python
+LETTERMINT_WEBHOOK_PATH = os.getenv("LETTERMINT_WEBHOOK_PATH", "lmnt/events/")   # -> POST /lmnt/events/
+```
+
+Register exactly that path in Lettermint, including the trailing slash. `reverse("lm-message-events")` returns it.
 
 ### 3. Create the webhook in Lettermint
 
-In the Lettermint dashboard open **Webhooks**, add a webhook pointing at `https://your-domain.example/lettermint/message-events/` and select the events you want. For bounce and delivery tracking select at least:
+In the Lettermint dashboard open **Webhooks** and add one webhook pointing at `https://your-domain.example/lettermint/message-events/`. One webhook is enough for everything this Django project sends, single or [bulk](bulk.md): events are matched on `message_id`, so the webhook's scope (team, project or route) only needs to cover the routes you send through. For bounce and delivery tracking select at least:
 
 - `message.delivered`
 - `message.soft_bounced`
 - `message.hard_bounced`
 - `message.failed`
 
-Copy the signing secret into `LETTERMINT_WEBHOOK_SECRET`. The dashboard's test button sends a `webhook.test` event, which the endpoint acknowledges without storing anything.
+Add `message.opened` and `message.clicked` if `not_opened()` should mean anything. Copy the signing secret into `LETTERMINT_WEBHOOK_SECRET`; it holds one secret, so use one webhook per Django project rather than several pointing at the same URL. The dashboard's test button sends a `webhook.test` event, which the endpoint acknowledges without storing anything.
 
-!!! note "All message events are stored"
-    Every `message.*` event Lettermint sends is stored as an `LmEmailEvent`, including events this version does not act on (opens, clicks, spam complaints). Only the events in the [status mapping](#status-mapping) change the message status.
+!!! note "What is stored, what is acknowledged"
+    Every outbound `message.*` event with a `message_id` is stored as an `LmEmailEvent`, including events this version does not act on (spam complaints, unsubscribes). Only the events listed under [what happens per event](#what-happens-per-event) with a status change the message status. `message.inbound` and the `suppression.*` events are answered with `200` but not stored: inbound mail is not supported, and a `message.inbound` payload carries the complete incoming message. Leave those events unticked for this webhook.
 
 ## Models
 
@@ -73,7 +81,9 @@ One row per email sent through the backend.
 | `from_email`, `to`, `cc`, `bcc` | Sender and recipient lists as passed to Django |
 | `subject` | Subject line |
 | `route` | Lettermint route used, if any |
-| `status` | Current status, see mapping below (starts as `pending`) |
+| `tag` | Lettermint tag from the `X-Lettermint-Tag` header, e.g. a campaign name |
+| `bulk_id` | Id of the [bulk send](bulk.md) this message was part of; empty for single sends |
+| `status` | Current status, see [what happens per event](#what-happens-per-event) (starts as `pending`, or `scheduled` for a scheduled send) |
 | `status_changed_at` | Timestamp of the event that set the current status |
 | `created_at` | When the message was sent |
 
@@ -95,24 +105,36 @@ One row per webhook event. A message with several recipients gets one event per 
 | `data` | Raw `data` object of the webhook payload |
 | `occurred_at` | Event timestamp from Lettermint |
 
-### Status mapping
+### What happens per event
 
-| Webhook event | `LmEmailMessage.status` |
-|---|---|
-| `message.created` | `queued` |
-| `message.sent` | `processed` |
-| `message.delivered` | `delivered` |
-| `message.soft_bounced` | `soft_bounced` |
-| `message.hard_bounced` | `hard_bounced` |
-| `message.failed` | `failed` |
-| `message.spam_complaint` | `spam_complaint` |
-| `message.suppressed` | `suppressed` |
-| `message.policy_rejected` | `policy_rejected` |
-| `message.unsubscribed` | `unsubscribed` |
-| `message.opened` | `opened` |
-| `message.clicked` | `clicked` |
+Every delivery is verified and answered with `200`. This is what happens after that, per event as the Lettermint dashboard groups them:
+
+| Event | Stored as `LmEmailEvent` | `LmEmailMessage.status` becomes | Signal |
+|---|---|---|---|
+| `message.created` | yes | `queued` | `lm_email_event` |
+| `message.sent` | yes | `processed` | `lm_email_event` |
+| `message.delivered` | yes | `delivered` | + `lm_email_delivered` |
+| `message.auto_replied` | yes | unchanged | `lm_email_event` |
+| `message.hard_bounced` | yes | `hard_bounced` | + `lm_email_bounced` |
+| `message.soft_bounced` | yes | `soft_bounced` | + `lm_email_bounced` |
+| `message.failed` | yes | `failed` | + `lm_email_failed` |
+| `message.suppressed` | yes | `suppressed` | `lm_email_event` |
+| `message.policy_rejected` | yes | `policy_rejected` | `lm_email_event` |
+| `message.scheduled` | yes | `scheduled` | `lm_email_event` |
+| `message.rescheduled` | yes | `scheduled` | `lm_email_event` |
+| `message.released` | yes | `queued` | `lm_email_event` |
+| `message.canceled` | yes | `canceled` | `lm_email_event` |
+| `message.opened` | yes | `opened` | `lm_email_event` |
+| `message.clicked` | yes | `clicked` | `lm_email_event` |
+| `message.unsubscribed` | yes | `unsubscribed` | `lm_email_event` |
+| `message.spam_complaint` | yes | `spam_complaint` | `lm_email_event` |
+| `message.inbound` | no | | none |
+| `suppression.added`, `suppression.removed` | no | | none |
+| `webhook.test` | no | | none |
 
 The status follows the most recent event by `occurred_at`, so an out-of-order retry of an older event never overwrites a newer status. For a message with several recipients the status reflects the latest event across all of them; use the events for per-recipient detail.
+
+Events Lettermint adds in the future are handled by the same rules, without code changes: an event with a `data.message_id` is stored, with its raw `data`, and leaves the status unchanged until this package maps it; an event without one is acknowledged and ignored. Unknown fields are kept in `data`, unknown value types are stored as text, and values longer than a column are truncated rather than rejected. The only deliveries that get a `5xx` are ones the database could not store, which is exactly when a retry from Lettermint helps.
 
 ## Querying
 
@@ -120,9 +142,13 @@ The status follows the most recent event by `occurred_at`, so an out-of-order re
 from lettermint_django.models import LmEmailEvent, LmEmailMessage
 
 LmEmailMessage.objects.get_status("msg_...")   # "delivered", "hard_bounced", ... or None
-LmEmailMessage.objects.delivered()
+LmEmailMessage.objects.delivered()             # delivered, opened or clicked
 LmEmailMessage.objects.bounced()                # soft and hard bounces
 LmEmailMessage.objects.failed()
+LmEmailMessage.objects.not_delivered()          # bounced, failed, suppressed, or still in transit
+LmEmailMessage.objects.not_opened()             # delivered without a registered open or click
+LmEmailMessage.objects.tagged("launch-2026")   # everything sent with that tag
+LmEmailMessage.objects.from_bulk(bulk_id)       # everything one send_bulk call sent
 
 message = LmEmailMessage.objects.get(message_id="msg_...")
 message.bounced                                 # True for soft/hard bounces
@@ -130,6 +156,7 @@ message.events.all()                            # newest first
 
 LmEmailEvent.objects.for_recipient("user@example.com")
 LmEmailEvent.objects.bounces()
+LmEmailEvent.objects.from_bulk(bulk_id)
 ```
 
 ## Signals
@@ -160,6 +187,20 @@ Receivers run synchronously inside the webhook request. Exceptions raised by a r
 ## Admin
 
 When `django.contrib.admin` is installed, both models appear under **Lettermint** as read-only lists. Messages show their events inline.
+
+## Security
+
+The endpoint is CSRF-exempt because every delivery is signed. Before anything is read from the body or written to the database, a delivery must pass the checks the Lettermint SDK performs:
+
+1. `X-Lettermint-Signature` and `X-Lettermint-Delivery` headers must be present.
+2. The delivery timestamp must be within five minutes of now, which blocks replaying a captured request.
+3. The HMAC-SHA256 signature over the timestamp and the raw body must match `LETTERMINT_WEBHOOK_SECRET`, compared in constant time.
+
+Anything else gets a `400` and one warning line in the `lettermint_django` log. A valid delivery that arrives twice within the window is a no-op because of the unique event id. Without `LETTERMINT_WEBHOOK_SECRET` the view raises `ImproperlyConfigured` on every request: it fails closed and never accepts an unsigned delivery.
+
+What stays with you: keep the secret out of the repository, regenerate it in the Lettermint dashboard if it leaks, serve the endpoint over HTTPS (Lettermint requires it), and add rate limiting at your proxy if log noise from bots bothers you.
+
+The system check `lettermint_django.W002` warns at `manage.py check` and `runserver` time when the webhook is served but the secret is empty.
 
 ## Behaviour details
 
