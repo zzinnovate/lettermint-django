@@ -1,0 +1,1 @@
+{% autoescape off %}Hi {{ name }}, your link: {{ link }} ({{ event }}){% endautoescape %}
