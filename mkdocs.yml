@@ -14,6 +14,7 @@ nav:
       - Installation: getting-started/installation.md
       - Configuration: getting-started/configuration.md
       - Usage: getting-started/usage.md
+      - Tracking: getting-started/tracking.md
   - Reference:
       - Settings: reference/settings.md
       - Backend: reference/backend.md

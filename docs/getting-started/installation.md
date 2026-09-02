@@ -25,10 +25,7 @@ No migrations required.
 
 ## Setup: With Email Tracking
 
-!!! note "Available in v0.3.0+"
-    Email tracking (delivery status, bounces) is planned for v0.3.0. See the [Roadmap](../reference/roadmap.md).
-
-To enable tracking, add `lettermint_django` to `INSTALLED_APPS` and run migrations:
+To track delivery status and bounces, add `lettermint_django` to `INSTALLED_APPS`, set the webhook secret and run migrations:
 
 ```python
 INSTALLED_APPS = [
@@ -38,15 +35,14 @@ INSTALLED_APPS = [
 
 EMAIL_BACKEND = "lettermint_django.LettermintEmailBackend"
 LETTERMINT_API_KEY = "lm_..."
-LETTERMINT_TRACKING_ENABLED = True
-LETTERMINT_WEBHOOK_SECRET = "whsec_..."
+LETTERMINT_WEBHOOK_SECRET = "..."  # signing secret from the Lettermint dashboard
 ```
 
 ```bash
 python manage.py migrate lettermint_django
 ```
 
-This creates the `LmEmailMessage` and `LmEmailEvent` tables used for tracking.
+This creates the `LmEmailMessage` and `LmEmailEvent` tables. Then include `lettermint_django.urls` in your project and register the webhook in Lettermint; see the [Tracking guide](tracking.md) for the full setup.
 
 ## From source
 

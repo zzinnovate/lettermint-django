@@ -2,7 +2,7 @@
 
 lettermint-django is actively developed with a clear path to a stable 1.0 release. Below is our planned evolution.
 
-**Current Version:** v0.2.x (email backend)  
+**Current Version:** v0.3.x (email backend + tracking foundation)  
 **Target:** v0.3.x → v0.4.x → v1.0.0 (full feature set)
 
 ---
@@ -15,20 +15,21 @@ lettermint-django is actively developed with a clear path to a stable 1.0 releas
 
 ### Features
 
-- [ ] **Django Models**: `LmEmailMessage` and `LmEmailEvent` models for tracking sent emails and status changes
-- [ ] **Message ID Capture**: Backend extracts `message_id` from Lettermint API responses and stores in database
-- [ ] **Webhook Endpoint**: Django view with Lettermint webhook signature verification
-- [ ] **Event Processing**: Webhook events (`message.delivered`, `message.hard_bounced`, `message.soft_bounced`, `message.failed`) update database
-- [ ] **Status Query Interface**: Model manager methods to query email status and events
-- [ ] **Django Signals**: Emit signals on status changes (`email_delivered`, `email_bounced`, `email_failed`) for app integrations
-- [ ] **Management Commands**: `lettermint_webhook_test`, `lettermint_email_status <message_id>`
-- [ ] **Configuration**: `LETTERMINT_TRACKING_ENABLED`, `LETTERMINT_WEBHOOK_SECRET` settings
-- [ ] **Documentation**: Tracking guide, webhook setup instructions
-- [ ] **Test Coverage**: Unit and integration tests for models, webhooks, backend integration
+- [x] **Django Models**: `LmEmailMessage` and `LmEmailEvent` models for tracking sent emails and status changes
+- [x] **Message ID Capture**: Backend extracts `message_id` from Lettermint API responses and stores in database
+- [x] **Webhook Endpoint**: Django view with Lettermint webhook signature verification
+- [x] **Event Processing**: Webhook events (`message.delivered`, `message.hard_bounced`, `message.soft_bounced`, `message.failed`) update database
+- [x] **Status Query Interface**: Model manager methods to query email status and events
+- [x] **Django Signals**: Emit signals on status changes (`lm_email_event`, `lm_email_delivered`, `lm_email_bounced`, `lm_email_failed`) for app integrations
+- [ ] **Management Commands**: `lettermint_email_status <message_id>` (webhook testing is covered by the dashboard's test button)
+- [x] **Configuration**: `LETTERMINT_WEBHOOK_SECRET` setting; tracking is enabled by installing the app
+- [x] **Admin**: Read-only Django admin for messages and events
+- [x] **Documentation**: Tracking guide, webhook setup instructions
+- [x] **Test Coverage**: Unit and integration tests for models, webhooks, backend integration
 
 ### What Users Get
 
-- Enable tracking with a single setting: `LETTERMINT_TRACKING_ENABLED = True`
+- Enable tracking by adding `lettermint_django` to `INSTALLED_APPS`
 - Automatic message capture and event logging via webhooks
 - Query email delivery status and bounce reasons
 - Hook into email lifecycle via Django signals
@@ -122,7 +123,7 @@ These are ideas for post-1.0 or community contributions:
 | Version | Status | Support Until |
 |---------|--------|---------------|
 | 0.2.x | Maintenance | 1.0.0 release |
-| 0.3.x | Planned | 1.0.0 release |
+| 0.3.x | Current | 1.0.0 release |
 | 0.4.x | Planned | 1.0.0 release |
 | 1.0.0 | Planned | 2 years after release |
 
