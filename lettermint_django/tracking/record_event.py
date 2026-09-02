@@ -1,7 +1,10 @@
 """``record_event()``: store a verified webhook payload as an ``LmEmailEvent``."""
 
+from __future__ import annotations
+
 from collections.abc import Mapping
 from datetime import datetime, timezone as dt_timezone
+from typing import TYPE_CHECKING
 
 from django.db import transaction
 from django.utils import timezone
@@ -10,12 +13,20 @@ from django.utils.dateparse import parse_datetime
 from .emit_signals import emit_signals
 from .enabled import is_tracking_enabled
 
+if TYPE_CHECKING:
+    from ..models import LmEmailEvent
 
-def record_event(payload):
+#: Events that are acknowledged but never stored. ``message.inbound`` carries the
+#: complete incoming mail (body, attachments, raw source); inbound is not supported.
+IGNORED_EVENTS = frozenset({"message.inbound"})
+
+
+def record_event(payload: Mapping[str, object]) -> tuple[LmEmailEvent | None, bool]:
     """Store a verified webhook payload as an ``LmEmailEvent``.
 
     Returns ``(event, created)``. ``(None, False)`` means the payload was
-    ignored: tracking is disabled, or the payload is not a message event.
+    ignored: tracking is disabled, the payload is not an outbound message
+    event (no ``data.message_id``), or the event is in ``IGNORED_EVENTS``.
     Duplicate deliveries (same event id) return the existing event with
     ``created=False`` and do not emit signals again.
 
@@ -32,6 +43,8 @@ def record_event(payload):
     message_id = data.get("message_id")
     if not isinstance(event_type, str) or event_id is None or not message_id:
         return None, False
+    if event_type in IGNORED_EVENTS:
+        return None, False
 
     from ..models import LmEmailEvent, LmEmailMessage
 
@@ -45,13 +58,15 @@ def record_event(payload):
         email_message = (
             LmEmailMessage.objects.select_for_update().filter(message_id=str(message_id)).first()
         )
+        # Column lengths are enforced by PostgreSQL; never let an unexpectedly long
+        # value from Lettermint turn into a 500 and a retry storm.
         event, created = LmEmailEvent.objects.get_or_create(
             event_id=str(event_id),
             defaults={
                 "email_message": email_message,
                 "message_id": str(message_id),
-                "event": event_type,
-                "recipient": str(data.get("recipient") or ""),
+                "event": event_type[:64],
+                "recipient": str(data.get("recipient") or "")[:254],
                 "reason": str(reason),
                 "reason_code": str(reason_code)[:64],
                 "data": dict(data),

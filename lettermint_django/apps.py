@@ -12,3 +12,6 @@ class LettermintDjangoConfig(AppConfig):
     name = "lettermint_django"
     verbose_name = "Lettermint"
     default_auto_field = "django.db.models.BigAutoField"
+
+    def ready(self):
+        from . import checks  # noqa: F401  (importing registers the system checks)

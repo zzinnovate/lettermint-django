@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 from django.core.exceptions import ImproperlyConfigured
 
+from lettermint_django.bulk import send_bulk
 from lettermint_django.models import LmEmailEvent, LmEmailMessage
 from lettermint_django.signals import (
     lm_email_bounced,
@@ -174,6 +175,68 @@ class TestEventStorage:
         assert sent_message.events.count() == 2
         assert LmEmailEvent.objects.for_recipient("B@example.com").get().event == "message.hard_bounced"
 
+    @pytest.mark.parametrize(
+        "event_type, expected_status",
+        [
+            ("message.scheduled", "scheduled"),
+            ("message.rescheduled", "scheduled"),
+            ("message.released", "queued"),
+            ("message.canceled", "canceled"),
+        ],
+    )
+    def test_scheduling_events_update_status(self, post_webhook, sent_message, event_type, expected_status):
+        post_webhook(webhook_payload(event_type))
+        sent_message.refresh_from_db()
+        assert sent_message.status == expected_status
+
+    def test_canceled_message_is_not_delivered_and_not_in_transit(self, post_webhook, sent_message):
+        post_webhook(webhook_payload("message.canceled"))
+        assert LmEmailMessage.objects.not_delivered().get() == sent_message
+        assert LmEmailMessage.objects.get().status == "canceled"
+
+    def test_unknown_event_with_surprising_shape_is_stored_not_500(self, post_webhook, sent_message):
+        payload = {
+            "id": "evt_new",
+            "event": "message.something_lettermint_invented",
+            "timestamp": "not a timestamp",
+            "context": {"scope": "team", "new_field": [1, 2, 3]},
+            "brand_new_top_level": {"nested": True},
+            "data": {
+                "message_id": "msg_test_1",
+                "recipient": {"email": "recipient@example.com", "name": "Structured now"},
+                "reason": ["a", "list"],
+                "response": "a string instead of an object",
+                "future": {"deeply": {"nested": None}},
+            },
+        }
+        response = post_webhook(payload)
+        assert response.status_code == 200
+        assert response.json() == {"received": True, "stored": True}
+
+        event = LmEmailEvent.objects.get()
+        assert event.event == "message.something_lettermint_invented"
+        assert event.email_message == sent_message
+        assert event.reason == "['a', 'list']"
+        assert event.reason_code == ""
+        assert event.data["future"] == {"deeply": {"nested": None}}
+        assert event.occurred_at is not None
+        sent_message.refresh_from_db()
+        assert sent_message.status == "pending"
+
+    def test_overlong_values_are_truncated_not_500(self, post_webhook):
+        payload = webhook_payload("message." + "x" * 100, recipient="r" * 300 + "@example.com")
+        assert post_webhook(payload).status_code == 200
+        event = LmEmailEvent.objects.get()
+        assert len(event.event) == 64
+        assert len(event.recipient) == 254
+
+    def test_unknown_event_without_message_id_is_acknowledged(self, post_webhook):
+        payload = {"id": "evt_x", "event": "account.something_new", "timestamp": "2026-09-01T10:00:00Z", "data": {"foo": "bar"}}
+        response = post_webhook(payload)
+        assert response.status_code == 200
+        assert response.json()["stored"] is False
+        assert LmEmailEvent.objects.count() == 0
+
     def test_unmapped_event_is_stored_without_status_change(self, post_webhook, sent_message):
         post_webhook(webhook_payload("message.auto_replied"))
         sent_message.refresh_from_db()
@@ -222,12 +285,137 @@ class TestEventStorage:
         assert event.reason == ""
         assert event.occurred_at is not None
 
+    def test_inbound_is_acknowledged_not_stored(self, post_webhook):
+        payload = {
+            "id": "evt_in",
+            "event": "message.inbound",
+            "timestamp": "2026-09-01T10:00:00Z",
+            "data": {"message_id": "in_1", "from": "someone@example.com", "subject": "Hi", "body": {"text": "..."}, "raw": "..."},
+        }
+        response = post_webhook(payload)
+        assert response.status_code == 200
+        assert response.json() == {"received": True, "stored": False}
+        assert LmEmailEvent.objects.count() == 0
+
+    def test_bulk_sent_messages_are_found_through_their_bulk(self, post_webhook, settings, mock_lettermint):
+        settings.EMAIL_BACKEND = "lettermint_django.LettermintEmailBackend"
+        _, _, builder = mock_lettermint
+        builder.send_batch.side_effect = lambda payloads: [
+            {"message_id": f"bulk_msg_{i}", "status": "pending"} for i, _ in enumerate(payloads)
+        ]
+        from django.core.mail import EmailMessage
+
+        result = send_bulk(
+            [EmailMessage(subject="S", body="B", from_email="a@example.com", to=[f"r{i}@example.com"]) for i in range(3)]
+        )
+        assert result.sent_count == 3
+
+        post_webhook(webhook_payload("message.delivered", message_id="bulk_msg_0", event_id="e0", recipient="r0@example.com"))
+        post_webhook(webhook_payload("message.hard_bounced", message_id="bulk_msg_1", event_id="e1", recipient="r1@example.com"))
+
+        sent = LmEmailMessage.objects.from_bulk(result.bulk_id)
+        assert sent.count() == 3
+        assert list(sent.bounced().values_list("message_id", flat=True)) == ["bulk_msg_1"]
+        assert set(sent.not_delivered().values_list("message_id", flat=True)) == {"bulk_msg_1", "bulk_msg_2"}
+        assert LmEmailEvent.objects.from_bulk(result.bulk_id).count() == 2
+        assert LmEmailEvent.objects.from_bulk(result.bulk_id).bounces().get().recipient == "r1@example.com"
+
     def test_tracking_disabled_acknowledges_without_storing(self, post_webhook):
         with patch("lettermint_django.tracking.enabled.apps.is_installed", return_value=False):
             response = post_webhook(webhook_payload("message.delivered"))
         assert response.status_code == 200
         assert response.json()["stored"] is False
         assert LmEmailEvent.objects.count() == 0
+
+
+class TestWebhookPath:
+    @pytest.fixture
+    def custom_path(self, settings):
+        """Point LETTERMINT_WEBHOOK_PATH elsewhere and reload the URLconfs, restoring afterwards."""
+        import importlib
+
+        from django.urls import clear_url_caches
+
+        import lettermint_django.urls
+        import tests.urls
+
+        def apply(path):
+            settings.LETTERMINT_WEBHOOK_PATH = path
+            importlib.reload(lettermint_django.urls)
+            importlib.reload(tests.urls)
+            clear_url_caches()
+
+        apply("lmnt/events/")
+        yield
+        apply(None)
+
+    def test_default_path(self):
+        from django.urls import reverse
+
+        from lettermint_django.urls import get_webhook_path
+
+        assert get_webhook_path() == "lettermint/message-events/"
+        assert reverse("lm-message-events") == "/lettermint/message-events/"
+
+    @pytest.mark.parametrize("value, expected", [("/lmnt/events/", "lmnt/events/"), ("  hooks/lm  ", "hooks/lm"), ("", "lettermint/message-events/"), (None, "lettermint/message-events/")])
+    def test_get_webhook_path_normalises(self, settings, value, expected):
+        from lettermint_django.urls import get_webhook_path
+
+        settings.LETTERMINT_WEBHOOK_PATH = value
+        assert get_webhook_path() == expected
+
+    def test_custom_path_serves_the_webhook(self, custom_path, client, sent_message):
+        from django.urls import reverse
+
+        assert reverse("lm-message-events") == "/lmnt/events/"
+        body = json.dumps(webhook_payload("message.delivered"))
+        response = client.post("/lmnt/events/", data=body, content_type="application/json", headers=sign_webhook(body))
+        assert response.status_code == 200
+        assert client.post(URL, data=body, content_type="application/json", headers=sign_webhook(body)).status_code == 404
+
+    def test_check_passes_when_included_at_root(self):
+        from lettermint_django.checks import check_webhook_path
+
+        assert check_webhook_path(None) == []
+
+    def test_check_warns_when_path_and_urlconf_disagree(self, settings):
+        from lettermint_django.checks import check_webhook_path
+
+        settings.LETTERMINT_WEBHOOK_PATH = "lmnt/events/"  # URLconf still serves the default: a stale or prefixed include
+        warnings = check_webhook_path(None)
+        assert [w.id for w in warnings] == ["lettermint_django.W001"]
+        assert "/lettermint/message-events/" in warnings[0].msg and "/lmnt/events/" in warnings[0].msg
+
+    def test_check_is_silent_without_webhook_urls(self, settings):
+        from django.urls import clear_url_caches
+
+        from lettermint_django.checks import check_webhook_path, check_webhook_secret
+
+        settings.ROOT_URLCONF = "tests.urls_empty"
+        settings.LETTERMINT_WEBHOOK_SECRET = ""
+        clear_url_caches()
+        try:
+            assert check_webhook_path(None) == []
+            assert check_webhook_secret(None) == []
+        finally:
+            clear_url_caches()
+
+
+class TestWebhookSecretCheck:
+    def test_passes_with_secret(self):
+        from lettermint_django.checks import check_webhook_secret
+
+        assert check_webhook_secret(None) == []
+
+    @pytest.mark.parametrize("secret", [None, "", "   "])
+    def test_warns_without_secret(self, settings, secret):
+        from lettermint_django.checks import check_webhook_secret
+
+        settings.LETTERMINT_WEBHOOK_SECRET = secret
+        warnings = check_webhook_secret(None)
+        assert [w.id for w in warnings] == ["lettermint_django.W002"]
+        assert "/lettermint/message-events/" in warnings[0].msg
+        assert "LETTERMINT_WEBHOOK_SECRET" in warnings[0].hint
 
 
 class TestSignals:
