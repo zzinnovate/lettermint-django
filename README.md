@@ -85,9 +85,9 @@ See the [bulk sending guide](https://zzinnovate.github.io/lettermint-django/gett
 
 This project is actively developed with a clear path toward v1.0.0. Our roadmap includes email tracking, bounce monitoring, and engagement analytics.
 
-- **Current:** v0.3.x (email backend, bounce & delivery tracking via webhooks)
-- **Next:** v0.4.0 (bulk sending via the batch endpoint)
-- **Planned:** v0.5.0 (opens, clicks, analytics) → v1.0.0 (production-ready)
+- **Current:** v0.4.x (email backend, delivery tracking via webhooks, bulk sending)
+- **Next:** v0.5.0 (opens, clicks, analytics)
+- **Planned:** v1.0.0 (production-ready)
 
 [View the full roadmap →](https://zzinnovate.github.io/lettermint-django/reference/roadmap/)
 

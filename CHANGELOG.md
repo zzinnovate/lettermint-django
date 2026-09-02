@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+---
+
+## [0.4.0a1] - 2026-09-02
+
 ### Added
 
 - Bulk sending through Lettermint's batch endpoint: `lettermint_django.bulk.send_bulk()` for any iterable of `EmailMessage` objects or prepared payload dicts, and `send_bulk_mail()` for one templated, personalised message per recipient, both returning per-message results (`BulkResult`, `BulkItem`) with Lettermint's reason for every failure; nothing is retried

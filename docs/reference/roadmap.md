@@ -2,7 +2,7 @@
 
 lettermint-django is actively developed with a clear path to a stable 1.0 release. Below is our planned evolution.
 
-**Current Version:** v0.3.x (email backend + tracking foundation)  
+**Current Version:** v0.4.x (email backend, tracking, bulk sending)  
 **Target:** v0.3.x → v0.4.x → v0.5.x → v1.0.0 (full feature set)
 
 ---
@@ -153,8 +153,8 @@ These are ideas for post-1.0 or community contributions:
 | Version | Status | Support Until |
 |---------|--------|---------------|
 | 0.2.x | Maintenance | 1.0.0 release |
-| 0.3.x | Current | 1.0.0 release |
-| 0.4.x | In progress | 1.0.0 release |
+| 0.3.x | Maintenance | 1.0.0 release |
+| 0.4.x | Current | 1.0.0 release |
 | 0.5.x | Planned | 1.0.0 release |
 | 1.0.0 | Planned | 2 years after release |
 
