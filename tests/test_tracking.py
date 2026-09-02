@@ -22,6 +22,7 @@ class TestRecordOnSend:
         assert msg.bcc == []
         assert msg.subject == "Hello"
         assert msg.route == ""
+        assert msg.bulk_id == ""
         assert msg.status_changed_at is None
 
     def test_records_route_cc_and_bcc(self, mock_lettermint, settings):
@@ -56,6 +57,12 @@ class TestRecordOnSend:
         builder.send.return_value = {"message_id": "msg_q", "status": "queued"}
         LettermintEmailBackend().send_messages([simple_email])
         assert LmEmailMessage.objects.get().status == "queued"
+
+    def test_scheduled_status_from_response_is_stored(self, simple_email, mock_lettermint):
+        _, _, builder = mock_lettermint
+        builder.send.return_value = {"message_id": "msg_s", "status": "scheduled", "scheduled_at": "2026-09-03T09:00:00Z"}
+        LettermintEmailBackend().send_messages([simple_email])
+        assert LmEmailMessage.objects.get().status == "scheduled"
 
     def test_unknown_status_falls_back_to_pending(self, simple_email, mock_lettermint):
         _, _, builder = mock_lettermint

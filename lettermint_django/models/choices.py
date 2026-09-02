@@ -4,9 +4,15 @@ from django.db import models
 
 
 class LmMessageStatus(models.TextChoices):
-    """Lettermint message statuses, mirroring the SDK's ``MessageStatus``."""
+    """Lettermint message statuses: the SDK's ``MessageStatus`` plus the scheduling states.
+
+    Unknown statuses coming from the API fall back to ``pending``; unknown
+    webhook events leave the status untouched.
+    """
 
     PENDING = "pending", "Pending"
+    SCHEDULED = "scheduled", "Scheduled"
+    CANCELED = "canceled", "Canceled"
     QUEUED = "queued", "Queued"
     SUPPRESSED = "suppressed", "Suppressed"
     PROCESSED = "processed", "Processed"
@@ -23,12 +29,18 @@ class LmMessageStatus(models.TextChoices):
 
 
 BOUNCE_STATUSES = (LmMessageStatus.SOFT_BOUNCED, LmMessageStatus.HARD_BOUNCED)
+#: Statuses that imply the message reached the recipient.
+DELIVERED_STATUSES = (LmMessageStatus.DELIVERED, LmMessageStatus.OPENED, LmMessageStatus.CLICKED)
 BOUNCE_EVENTS = ("message.soft_bounced", "message.hard_bounced")
 
 #: Webhook event type -> message status it moves the message to.
 #: Events not listed here are stored but do not change the message status.
 EVENT_STATUS_MAP = {
     "message.created": LmMessageStatus.QUEUED,
+    "message.scheduled": LmMessageStatus.SCHEDULED,
+    "message.rescheduled": LmMessageStatus.SCHEDULED,
+    "message.released": LmMessageStatus.QUEUED,
+    "message.canceled": LmMessageStatus.CANCELED,
     "message.sent": LmMessageStatus.PROCESSED,
     "message.delivered": LmMessageStatus.DELIVERED,
     "message.soft_bounced": LmMessageStatus.SOFT_BOUNCED,

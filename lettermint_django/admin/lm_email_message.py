@@ -9,9 +9,9 @@ from .mixins import ReadOnlyMixin
 
 @admin.register(LmEmailMessage)
 class LmEmailMessageAdmin(ReadOnlyMixin, admin.ModelAdmin):
-    list_display = ("message_id", "subject", "recipients", "status", "status_changed_at", "created_at")
-    list_filter = ("status", "route")
-    search_fields = ("message_id", "subject", "from_email", "to", "events__recipient")
+    list_display = ("message_id", "subject", "recipients", "status", "tag", "status_changed_at", "created_at")
+    list_filter = ("status", "route", "tag")
+    search_fields = ("message_id", "bulk_id", "subject", "from_email", "to", "events__recipient")
     readonly_fields = [field.name for field in LmEmailMessage._meta.fields]
     date_hierarchy = "created_at"
     inlines = [LmEmailEventInline]
