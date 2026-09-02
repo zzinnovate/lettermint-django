@@ -6,7 +6,7 @@
 ![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
 ![Django Version](https://img.shields.io/badge/django-4.2%20%7C%205.x%20%7C%206.x-092E20)
 
-An unofficial Django email backend for [Lettermint](https://lettermint.co/). Drop it in as your `EMAIL_BACKEND` and all Django mail (`send_mail()`, `EmailMessage`, `EmailMultiAlternatives`) routes through the Lettermint API. Supports per-message routing, HTML emails, attachments, and reply-to headers with no changes to your existing email code.
+An unofficial Django email backend for [Lettermint](https://lettermint.co/). Drop it in as your `EMAIL_BACKEND` and all Django mail (`send_mail()`, `EmailMessage`, `EmailMultiAlternatives`) routes through the Lettermint API. Supports per-message routing, HTML emails, attachments, and reply-to headers with no changes to your existing email code. An optional tracking application records sent messages and delivery events through Lettermint webhooks.
 
 Built and maintained by [zzinnovate](https://github.com/zzinnovate). Not affiliated with Lettermint.
 
