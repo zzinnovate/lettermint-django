@@ -238,7 +238,7 @@ class TestRenderBulkMail:
         assert ann.subject == "Hi Ann"
         assert ann.body == "Your link: https://x/t/1/ for Launch"
         assert isinstance(ann, EmailMultiAlternatives)
-        assert ann.alternatives[0].content == "<a href='https://x/t/1/'>Launch</a>"
+        assert ann.alternatives[0][0] == "<a href='https://x/t/1/'>Launch</a>"
         assert ann.lm_recipient is recipients[0]
 
         assert bob.to == ["bob@example.com"]
@@ -257,7 +257,7 @@ class TestRenderBulkMail:
         )
         assert message.subject == "A & B"
         assert message.body == "A & B"
-        assert message.alternatives[0].content == "A &amp; B"
+        assert message.alternatives[0][0] == "A &amp; B"
 
     def test_subject_is_collapsed_to_one_line(self):
         message = next(render_bulk_mail(["a@example.com"], "  Hello\n  {{ name }}  ", text="x", context={}))
@@ -274,7 +274,7 @@ class TestRenderBulkMail:
             )
         )
         assert message.body.strip() == "Hi Ann, your link: https://x/t/1/ (Launch)"
-        assert message.alternatives[0].content.strip() == '<p>Hi Ann, <a href="https://x/t/1/">join Launch</a></p>'
+        assert message.alternatives[0][0].strip() == '<p>Hi Ann, <a href="https://x/t/1/">join Launch</a></p>'
 
     def test_language_per_recipient_and_default(self):
         template = "{% load i18n %}{% get_current_language as lang %}{{ lang }}"
