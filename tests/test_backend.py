@@ -8,29 +8,6 @@ from django.core.mail import EmailMessage, EmailMultiAlternatives
 from lettermint_django import LettermintEmailBackend
 
 
-@pytest.fixture
-def mock_lettermint():
-    """Patch the Lettermint SDK client."""
-    with patch("lettermint.Lettermint") as mock_cls:
-        mock_client = MagicMock()
-        mock_cls.return_value = mock_client
-        # Chain .email.from_().to_().subject()... all return a fluent mock
-        mock_email_builder = MagicMock()
-        mock_client.email = mock_email_builder
-        mock_email_builder.from_.return_value = mock_email_builder
-        mock_email_builder.to.return_value = mock_email_builder
-        mock_email_builder.cc.return_value = mock_email_builder
-        mock_email_builder.bcc.return_value = mock_email_builder
-        mock_email_builder.reply_to.return_value = mock_email_builder
-        mock_email_builder.route.return_value = mock_email_builder
-        mock_email_builder.subject.return_value = mock_email_builder
-        mock_email_builder.text.return_value = mock_email_builder
-        mock_email_builder.html.return_value = mock_email_builder
-        mock_email_builder.headers.return_value = mock_email_builder
-        mock_email_builder.attach.return_value = mock_email_builder
-        yield mock_cls, mock_client, mock_email_builder
-
-
 class TestLettermintEmailBackendInit:
     def test_reads_api_key_from_settings(self, settings):
         settings.LETTERMINT_API_KEY = "lm_from_settings"

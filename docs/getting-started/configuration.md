@@ -11,6 +11,8 @@ EMAIL_BACKEND = "lettermint_django.LettermintEmailBackend"
 LETTERMINT_API_KEY = os.getenv("LETTERMINT_API_KEY")
 ```
 
+No `INSTALLED_APPS` entry is needed for sending emails. Add `lettermint_django` to `INSTALLED_APPS` only when you want [email tracking](tracking.md).
+
 ## Environment variable
 
 Store your API key in an environment variable, never hard-code it:
@@ -29,6 +31,7 @@ EMAIL_BACKEND = "lettermint_django.LettermintEmailBackend"
 LETTERMINT_API_KEY = os.getenv("LETTERMINT_API_KEY")
 LETTERMINT_ROUTE = os.getenv("LETTERMINT_ROUTE", "transactional")  # optional default route
 LETTERMINT_TIMEOUT = 10  # optional, seconds
+LETTERMINT_WEBHOOK_SECRET = os.getenv("LETTERMINT_WEBHOOK_SECRET")  # only with tracking
 ```
 
 See the [Settings reference](../reference/settings.md) for all available options.

@@ -6,7 +6,7 @@
 ![Python Version](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
 ![Django Version](https://img.shields.io/badge/django-4.2%20%7C%205.x%20%7C%206.x-092E20)
 
-An unofficial Django email backend for [Lettermint](https://lettermint.co/). Drop it in as your `EMAIL_BACKEND` and all Django mail (`send_mail()`, `EmailMessage`, `EmailMultiAlternatives`) routes through the Lettermint API. Supports per-message routing, HTML emails, attachments, and reply-to headers with no changes to your existing email code.
+An unofficial Django email backend for [Lettermint](https://lettermint.co/). Drop it in as your `EMAIL_BACKEND` and all Django mail (`send_mail()`, `EmailMessage`, `EmailMultiAlternatives`) routes through the Lettermint API. Supports per-message routing, HTML emails, attachments, and reply-to headers with no changes to your existing email code. An optional tracking application records sent messages and delivery events through Lettermint webhooks.
 
 Built and maintained by [zzinnovate](https://github.com/zzinnovate). Not affiliated with Lettermint.
 
@@ -14,7 +14,7 @@ Built and maintained by [zzinnovate](https://github.com/zzinnovate). Not affilia
 
 📖 **[View Full Documentation →](https://zzinnovate.github.io/lettermint-django/)**
 
-- **Getting Started**: [Installation](https://zzinnovate.github.io/lettermint-django/getting-started/installation/) • [Configuration](https://zzinnovate.github.io/lettermint-django/getting-started/configuration/) • [Usage](https://zzinnovate.github.io/lettermint-django/getting-started/usage/)
+- **Getting Started**: [Installation](https://zzinnovate.github.io/lettermint-django/getting-started/installation/) • [Configuration](https://zzinnovate.github.io/lettermint-django/getting-started/configuration/) • [Usage](https://zzinnovate.github.io/lettermint-django/getting-started/usage/) • [Tracking](https://zzinnovate.github.io/lettermint-django/getting-started/tracking/)
 - **Reference**: [Settings](https://zzinnovate.github.io/lettermint-django/reference/settings/) • [Backend](https://zzinnovate.github.io/lettermint-django/reference/backend/)
 - **Project**: [Contributing](https://zzinnovate.github.io/lettermint-django/project/contributing/) • [Changelog](https://zzinnovate.github.io/lettermint-django/project/changelog/) • [Security](https://zzinnovate.github.io/lettermint-django/project/security/)
 
@@ -44,6 +44,34 @@ LETTERMINT_API_KEY = os.getenv("LETTERMINT_API_KEY")
 
 That's it. All `send_mail()`, `EmailMessage`, and `EmailMultiAlternatives` calls in Django will now route through Lettermint.
 
+## Email tracking (optional)
+
+Add the app, set the webhook secret and include the webhook URL to record every sent message and its delivery events (delivered, bounced, failed):
+
+```python
+INSTALLED_APPS += ["lettermint_django"]
+LETTERMINT_WEBHOOK_SECRET = os.getenv("LETTERMINT_WEBHOOK_SECRET")
+
+# urls.py
+path("lettermint/", include("lettermint_django.urls")),
+```
+
+```bash
+python manage.py migrate lettermint_django
+```
+
+Point a webhook in the Lettermint dashboard at `/lettermint/message-events/`. Query `LmEmailMessage` and `LmEmailEvent`, or connect to the `lm_email_bounced` signal. See the [tracking guide](https://zzinnovate.github.io/lettermint-django/getting-started/tracking/).
+
+## Roadmap
+
+This project is actively developed with a clear path toward v1.0.0. Our roadmap includes email tracking, bounce monitoring, and engagement analytics.
+
+- **Current:** v0.3.x (email backend, bounce & delivery tracking via webhooks)
+- **Next:** v0.4.0 (opens, clicks, analytics)
+- **Planned:** v1.0.0 (production-ready)
+
+[View the full roadmap →](https://zzinnovate.github.io/lettermint-django/reference/roadmap/)
+
 ## Settings Reference
 
 | Setting | Required | Default | Description |
@@ -52,6 +80,7 @@ That's it. All `send_mail()`, `EmailMessage`, and `EmailMultiAlternatives` calls
 | `LETTERMINT_BASE_URL` | No | SDK default | Override the Lettermint API base URL |
 | `LETTERMINT_ROUTE` | No | - | Default route applied to all outgoing emails |
 | `LETTERMINT_TIMEOUT` | No | SDK default | Request timeout in seconds |
+| `LETTERMINT_WEBHOOK_SECRET` | With tracking | - | Signing secret of your Lettermint webhook |
 
 ## Per-message Route
 

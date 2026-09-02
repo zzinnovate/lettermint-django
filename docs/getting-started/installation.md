@@ -12,6 +12,38 @@
 pip install lettermint-django
 ```
 
+## Setup: Backend Only
+
+If you only need to send emails through Lettermint, no `INSTALLED_APPS` entry is needed. Just configure the backend in your settings:
+
+```python
+EMAIL_BACKEND = "lettermint_django.LettermintEmailBackend"
+LETTERMINT_API_KEY = "lm_..."
+```
+
+No migrations required.
+
+## Setup: With Email Tracking
+
+To track delivery status and bounces, add `lettermint_django` to `INSTALLED_APPS`, set the webhook secret and run migrations:
+
+```python
+INSTALLED_APPS = [
+    # ...
+    "lettermint_django",
+]
+
+EMAIL_BACKEND = "lettermint_django.LettermintEmailBackend"
+LETTERMINT_API_KEY = "lm_..."
+LETTERMINT_WEBHOOK_SECRET = "..."  # signing secret from the Lettermint dashboard
+```
+
+```bash
+python manage.py migrate lettermint_django
+```
+
+This creates the `LmEmailMessage` and `LmEmailEvent` tables. Then include `lettermint_django.urls` in your project and register the webhook in Lettermint; see the [Tracking guide](tracking.md) for the full setup.
+
 ## From source
 
 ```bash

@@ -8,6 +8,8 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.mail.backends.base import BaseEmailBackend
 
+from .tracking import record_sent
+
 
 class LettermintEmailBackend(BaseEmailBackend):
     """Send Django EmailMessage objects through the Lettermint API.
@@ -23,6 +25,9 @@ class LettermintEmailBackend(BaseEmailBackend):
     Per-message route override via extra_headers:
 
         email.extra_headers["X-Lettermint-Route"] = "transactional"
+
+    When "lettermint_django" is in INSTALLED_APPS, every sent message is stored
+    as an LmEmailMessage so webhook events can be matched to it later.
     """
 
     def __init__(self, *args, **kwargs):
@@ -105,8 +110,8 @@ class LettermintEmailBackend(BaseEmailBackend):
 
         mail = self.connection.email
 
-        from_email = email_message.from_email or settings.DEFAULT_FROM_EMAIL
-        mail = mail.from_(self._normalize_address(from_email))
+        sender = self._normalize_address(email_message.from_email or settings.DEFAULT_FROM_EMAIL)
+        mail = mail.from_(sender)
 
         if email_message.to:
             mail = mail.to(*email_message.to)
@@ -140,7 +145,8 @@ class LettermintEmailBackend(BaseEmailBackend):
             encoded = base64.b64encode(raw_content).decode("ascii")
             mail = mail.attach(filename, encoded)
 
-        mail.send()
+        response = mail.send()
+        record_sent(email_message, response, from_email=sender, route=route)
         return True
 
     def _resolve_route(self, email_message):
