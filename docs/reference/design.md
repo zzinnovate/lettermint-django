@@ -113,6 +113,18 @@ urlpatterns = [
 - Signal receiver exceptions are logged and never propagated (`send_robust`), so user code cannot trigger retries
 - Database errors return a 5xx so Lettermint retries; the unique event id keeps retries idempotent
 
+### Bulk Sending: No Retries
+
+**Decision:** `send_bulk` sends every chunk it is asked to send, once, and reports per message whether Lettermint accepted it and why not. It never retries, splits a rejected chunk, throttles, or enforces Lettermint's limits.
+
+**Rationale:**
+- Retrying without an idempotency key can send a batch twice; the SDK's `send_batch()` does not expose one
+- The caller's task queue already has retry semantics; a second layer underneath makes behaviour impossible to reason about
+- Lettermint's limits are theirs and change; encoding them would make this package wrong the day they move
+- Isolating one bad message in a rejected chunk is a one-liner for the caller (`send_bulk(failed, batch_size=1)`) and a conscious choice
+
+**What the package does own:** chunking (mapping N messages onto N/batch_size requests, lazily), per-message results with Lettermint's own error text, and recording accepted messages for tracking.
+
 ### Optional Tracking
 
 **Decision:** Tracking is off unless `lettermint_django` is in `INSTALLED_APPS`. There is no separate on/off setting.
@@ -179,7 +191,10 @@ lettermint_django/
 ├── __init__.py              # Exports the backend only; never imports models
 ├── apps.py                  # Django app config
 ├── backend.py               # LettermintEmailBackend
-├── urls.py                  # Webhook URL route
+├── urls.py                  # Webhook URL route (path from LETTERMINT_WEBHOOK_PATH)
+├── checks/
+│   ├── webhook_path.py      # W001: URLs included under a prefix
+│   └── webhook_secret.py    # W002: webhook served without a secret
 ├── models/
 │   ├── __init__.py          # Re-exports
 │   ├── choices.py           # LmMessageStatus, event -> status mapping
@@ -201,8 +216,7 @@ lettermint_django/
 │   ├── mixins.py            # ReadOnlyMixin
 │   ├── lm_email_message.py  # LmEmailMessageAdmin
 │   └── lm_email_event.py    # LmEmailEventAdmin, LmEmailEventInline
-├── migrations/
-└── management/commands/     # Planned: lettermint_email_status
+└── migrations/
 ```
 
 ---
@@ -214,7 +228,8 @@ lettermint_django/
   - No breaking changes within v0.3.x (patch updates may add features)
   - Signal names frozen after v0.3.0
   - Model fields may be added (with migrations) but not removed/renamed
-- **v0.4.x:** Advanced tracking (opens, clicks)
+- **v0.4.x:** Bulk sending (batch endpoint, tags)
+- **v0.5.x:** Advanced tracking (opens, clicks)
 - **v1.0.0:** Stable (production-ready, 2-year support)
 
 **Backward Compatibility:**
@@ -250,11 +265,11 @@ python manage.py migrate lettermint_django
 # In settings.py:
 INSTALLED_APPS += ["lettermint_django"]
 LETTERMINT_WEBHOOK_SECRET = "..."  # From Lettermint dashboard
-# In urls.py:
-path("lettermint/", include("lettermint_django.urls"))
+# In urls.py (at the root; LETTERMINT_WEBHOOK_PATH is the whole path):
+path("", include("lettermint_django.urls"))
 
 # 4. Set up webhook in Lettermint dashboard
-# URL: https://myapp.com/lettermint/message-events/
+# URL: https://myapp.com/lettermint/message-events/  (or your LETTERMINT_WEBHOOK_PATH)
 # Events: message.delivered, message.soft_bounced, message.hard_bounced, message.failed
 
 # 5. Test the webhook with the dashboard's test button (sends a webhook.test event)

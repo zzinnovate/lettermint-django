@@ -2,9 +2,27 @@
 
 ## [Unreleased]
 
-### Planned for v0.3.x
+### Added
 
-- `lettermint_email_status <message_id>` management command
+- Bulk sending through Lettermint's batch endpoint: `lettermint_django.bulk.send_bulk()` for any iterable of `EmailMessage` objects or prepared payload dicts, and `send_bulk_mail()` for one templated, personalised message per recipient, both returning per-message results (`BulkResult`, `BulkItem`) with Lettermint's reason for every failure; nothing is retried
+- `render_bulk_mail()`: lazy per-recipient rendering from template strings or files, with shared and per-recipient context and per-recipient language
+- `LmEmailMessage.bulk_id` (migration `0003`): every message accepted in a `send_bulk` call carries the call's id (`result.bulk_id`, or your own via `bulk_id=`); query with `LmEmailMessage.objects.from_bulk()` and `LmEmailEvent.objects.from_bulk()`
+- Queryset helpers `LmEmailMessage.objects.not_delivered()` and `.not_opened()` for following up on a send
+- Statuses `scheduled` and `canceled` (migration `0004`), set by the `message.scheduled`, `message.rescheduled`, `message.released` and `message.canceled` webhook events and by scheduled sends
+- `X-Lettermint-Tag` header support; the tag is stored on `LmEmailMessage.tag` (migration `0002`), queryable with `LmEmailMessage.objects.tagged()` and filterable in the admin
+- Backend primitives `build_payload()`, `send_single()` and `send_payloads()`
+- `LETTERMINT_BATCH_SIZE` setting
+- `LETTERMINT_WEBHOOK_PATH` setting: the whole path of the webhook endpoint (default `lettermint/message-events/`), plus system checks `lettermint_django.W001` (URLs included under a prefix) and `lettermint_django.W002` (webhook served without `LETTERMINT_WEBHOOK_SECRET`)
+- Bulk sending guide in the documentation
+
+### Changed
+
+- `LettermintEmailBackend._send()` is now `send_single()` and returns the Lettermint response; `_send` remains as an alias
+- A message counts as sent whenever Lettermint returned a response, even one without a `message_id`
+- `lettermint_django.urls` must now be included at the root (`path("", include("lettermint_django.urls"))`); the path comes from `LETTERMINT_WEBHOOK_PATH`. Projects that included it under `lettermint/` keep the same URL by switching to the root include
+- `message.inbound` webhook events are acknowledged but no longer stored; inbound mail is not supported and the payload carries the complete message
+- Webhook values longer than their column (`event`, `recipient`) are truncated instead of failing the delivery
+
 
 ---
 

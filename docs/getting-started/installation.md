@@ -42,7 +42,7 @@ LETTERMINT_WEBHOOK_SECRET = "..."  # signing secret from the Lettermint dashboar
 python manage.py migrate lettermint_django
 ```
 
-This creates the `LmEmailMessage` and `LmEmailEvent` tables. Then include `lettermint_django.urls` in your project and register the webhook in Lettermint; see the [Tracking guide](tracking.md) for the full setup.
+This creates the `LmEmailMessage` and `LmEmailEvent` tables. Then include `lettermint_django.urls` at the root of your URLconf and register the webhook in Lettermint; see the [Tracking guide](tracking.md) for the full setup.
 
 ## From source
 

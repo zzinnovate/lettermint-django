@@ -3,7 +3,7 @@
 lettermint-django is actively developed with a clear path to a stable 1.0 release. Below is our planned evolution.
 
 **Current Version:** v0.3.x (email backend + tracking foundation)  
-**Target:** v0.3.x → v0.4.x → v1.0.0 (full feature set)
+**Target:** v0.3.x → v0.4.x → v0.5.x → v1.0.0 (full feature set)
 
 ---
 
@@ -21,7 +21,6 @@ lettermint-django is actively developed with a clear path to a stable 1.0 releas
 - [x] **Event Processing**: Webhook events (`message.delivered`, `message.hard_bounced`, `message.soft_bounced`, `message.failed`) update database
 - [x] **Status Query Interface**: Model manager methods to query email status and events
 - [x] **Django Signals**: Emit signals on status changes (`lm_email_event`, `lm_email_delivered`, `lm_email_bounced`, `lm_email_failed`) for app integrations
-- [ ] **Management Commands**: `lettermint_email_status <message_id>` (webhook testing is covered by the dashboard's test button)
 - [x] **Configuration**: `LETTERMINT_WEBHOOK_SECRET` setting; tracking is enabled by installing the app
 - [x] **Admin**: Read-only Django admin for messages and events
 - [x] **Documentation**: Tracking guide, webhook setup instructions
@@ -42,7 +41,40 @@ lettermint-django is actively developed with a clear path to a stable 1.0 releas
 
 ---
 
-## v0.4.0 - Advanced Tracking & Analytics
+## v0.4.0 - Bulk Sending
+
+**Target:** Q3 2026
+
+**Goal:** Send one mail to many recipients, or a unique mail per recipient, through Lettermint's batch endpoint.
+
+### Features
+
+- [x] **Batch Transport**: `build_payload()` and `send_payloads()` on the backend, one request per batch
+- [x] **`send_bulk()`**: Send any iterable of `EmailMessage` objects or prepared payload dicts in chunks, with per-message results (`BulkResult`, `BulkItem`)
+- [x] **`send_bulk_mail()`**: Render one personalised message per recipient from Django templates (strings or files), with shared and per-recipient context and per-recipient language
+- [x] **Tags**: `X-Lettermint-Tag` header, stored on `LmEmailMessage.tag`, queryable with `LmEmailMessage.objects.tagged()`
+- [x] **Follow-up**: `LmEmailMessage.bulk_id` ties tracked messages to the send; `from_bulk()`, `not_delivered()` and `not_opened()` for filtering and resending from the caller's own data
+- [x] **Clear outcomes, no retries**: A rejected chunk fails its messages with Lettermint's reason; later chunks are still sent
+- [x] **Configuration**: `LETTERMINT_BATCH_SIZE`
+- [x] **Documentation**: Bulk sending guide
+- [x] **Test Coverage**: Payload builder, chunking, failures, rendering
+
+### What Users Get
+
+- `send_bulk_mail(recipients, subject, text_template=..., html_template=...)` as the Lettermint counterpart of `send_mass_mail`
+- One `message_id` (and tracking row) per recipient, ready to join with webhook events
+- Render in one place and send in another: payload dicts are JSON, so they fit a queue or a serverless function
+- Guest-list style personalisation: import addresses, generate links, send in one call
+
+### Non-Goals
+
+- Server-side templates or merge tags (Lettermint has none; rendering happens in Django)
+- Retries, throttling or enforcing Lettermint's limits (the caller's responsibility)
+- Async task processing
+
+---
+
+## v0.5.0 - Advanced Tracking & Analytics
 
 **Target:** Q4 2026
 
@@ -69,7 +101,6 @@ lettermint-django is actively developed with a clear path to a stable 1.0 releas
 ### Non-Goals
 
 - UI dashboard
-- Bulk operations
 - Cross-message analytics (campaign aggregation)
 
 ---
@@ -111,7 +142,6 @@ These are ideas for post-1.0 or community contributions:
 - **Async Send Option** — Integration with Celery/RQ for background email sending
 - **Event Replay** — Replay webhook events for missed or failed deliveries
 - **Webhook Debug UI** — Web interface for testing and debugging webhooks
-- **Batch Operations** — Send multiple emails with a single API call
 - **Email Template Integration** — Lettermint template support in Django models
 - **Inbound Email Support** — Receive and process inbound emails via Lettermint
 - **Testing Utilities** — Django test client helpers for email tracking assertions
@@ -124,7 +154,8 @@ These are ideas for post-1.0 or community contributions:
 |---------|--------|---------------|
 | 0.2.x | Maintenance | 1.0.0 release |
 | 0.3.x | Current | 1.0.0 release |
-| 0.4.x | Planned | 1.0.0 release |
+| 0.4.x | In progress | 1.0.0 release |
+| 0.5.x | Planned | 1.0.0 release |
 | 1.0.0 | Planned | 2 years after release |
 
 ---

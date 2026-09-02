@@ -24,15 +24,30 @@ Releases the SDK client. Called automatically after sending.
 
 Sends a list of `EmailMessage` objects. Returns the number of messages successfully sent.
 
-Each message is translated to the Lettermint SDK chain: `from_()`, `to()`, `cc()`, `bcc()`, `subject()`, `text()`, `html()`, `reply_to()`, `headers()`, `attach()`, `route()`, `send()`.
+Each message is translated with `build_payload()` and sent through the SDK's single-send builder.
 
-## Per-message route override
+### `send_single(email_message)`
 
-Set `X-Lettermint-Route` in `extra_headers` to override the global `LETTERMINT_ROUTE` for a single message:
+Sends one message and returns the Lettermint response dict (`message_id`, `status`), or `None` when the message has no recipients. SDK errors propagate. `_send()` is kept as an alias.
+
+### `build_payload(email_message)`
+
+Translates a Django `EmailMessage` into the dict the Lettermint API accepts: `from`, `to`, `cc`, `bcc`, `reply_to`, `route`, `subject`, `text`, `html`, `headers`, `tag` and base64 `attachments`. The single-send and batch paths both use it, so a subclass that overrides `_get_passthrough_headers()` affects both.
+
+### `send_payloads(payloads)`
+
+Posts a list of payload dicts to the batch endpoint in one request and returns the per-message responses in order. It does not chunk or check Lettermint's limits; whatever Lettermint rejects comes back as the SDK's exception. This is the primitive behind [bulk sending](../getting-started/bulk.md); use `lettermint_django.bulk.send_bulk()` rather than calling it directly.
+
+## Per-message route and tag
+
+Set `X-Lettermint-Route` in `extra_headers` to override the global `LETTERMINT_ROUTE` for a single message, and `X-Lettermint-Tag` to tag it:
 
 ```python
 msg.extra_headers["X-Lettermint-Route"] = "transactional"
+msg.extra_headers["X-Lettermint-Tag"] = "launch-2026"
 ```
+
+Both headers are consumed by the backend and not sent as email headers.
 
 ## Error handling
 
