@@ -193,7 +193,6 @@ lettermint_django/
 ├── backend.py               # LettermintEmailBackend
 ├── urls.py                  # Webhook URL route (path from LETTERMINT_WEBHOOK_PATH)
 ├── checks/
-│   ├── webhook_path.py      # W001: URLs included under a prefix
 │   └── webhook_secret.py    # W002: webhook served without a secret
 ├── models/
 │   ├── __init__.py          # Re-exports

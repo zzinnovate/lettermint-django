@@ -373,29 +373,15 @@ class TestWebhookPath:
         assert response.status_code == 200
         assert client.post(URL, data=body, content_type="application/json", headers=sign_webhook(body)).status_code == 404
 
-    def test_check_passes_when_included_at_root(self):
-        from lettermint_django.checks import check_webhook_path
-
-        assert check_webhook_path(None) == []
-
-    def test_check_warns_when_path_and_urlconf_disagree(self, settings):
-        from lettermint_django.checks import check_webhook_path
-
-        settings.LETTERMINT_WEBHOOK_PATH = "lmnt/events/"  # URLconf still serves the default: a stale or prefixed include
-        warnings = check_webhook_path(None)
-        assert [w.id for w in warnings] == ["lettermint_django.W001"]
-        assert "/lettermint/message-events/" in warnings[0].msg and "/lmnt/events/" in warnings[0].msg
-
-    def test_check_is_silent_without_webhook_urls(self, settings):
+    def test_secret_check_is_silent_without_webhook_urls(self, settings):
         from django.urls import clear_url_caches
 
-        from lettermint_django.checks import check_webhook_path, check_webhook_secret
+        from lettermint_django.checks import check_webhook_secret
 
         settings.ROOT_URLCONF = "tests.urls_empty"
         settings.LETTERMINT_WEBHOOK_SECRET = ""
         clear_url_caches()
         try:
-            assert check_webhook_path(None) == []
             assert check_webhook_secret(None) == []
         finally:
             clear_url_caches()

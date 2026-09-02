@@ -51,7 +51,7 @@ The path is the setting `LETTERMINT_WEBHOOK_PATH`, so include the URLs at the ro
 LETTERMINT_WEBHOOK_PATH = os.getenv("LETTERMINT_WEBHOOK_PATH", "lmnt/events/")   # -> POST /lmnt/events/
 ```
 
-Register exactly that path in Lettermint, including the trailing slash. `reverse("lm-message-events")` returns it. Including the URLs under a prefix would double the path; the system check `lettermint_django.W001` warns when the resolved URL and the setting disagree.
+Register exactly that path in Lettermint, including the trailing slash. `reverse("lm-message-events")` returns it.
 
 ### 3. Create the webhook in Lettermint
 
@@ -200,7 +200,7 @@ Anything else gets a `400` and one warning line in the `lettermint_django` log. 
 
 What stays with you: keep the secret out of the repository, regenerate it in the Lettermint dashboard if it leaks, serve the endpoint over HTTPS (Lettermint requires it), and add rate limiting at your proxy if log noise from bots bothers you.
 
-Two system checks catch the common mistakes at `manage.py check` and `runserver` time: `lettermint_django.W001` when the URLs are included under a prefix, and `lettermint_django.W002` when the webhook is served but the secret is empty.
+The system check `lettermint_django.W002` warns at `manage.py check` and `runserver` time when the webhook is served but the secret is empty.
 
 ## Behaviour details
 

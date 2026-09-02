@@ -12,7 +12,7 @@
 - `X-Lettermint-Tag` header support; the tag is stored on `LmEmailMessage.tag` (migration `0002`), queryable with `LmEmailMessage.objects.tagged()` and filterable in the admin
 - Backend primitives `build_payload()`, `send_single()` and `send_payloads()`
 - `LETTERMINT_BATCH_SIZE` setting
-- `LETTERMINT_WEBHOOK_PATH` setting: the whole path of the webhook endpoint (default `lettermint/message-events/`), plus system checks `lettermint_django.W001` (URLs included under a prefix) and `lettermint_django.W002` (webhook served without `LETTERMINT_WEBHOOK_SECRET`)
+- `LETTERMINT_WEBHOOK_PATH` setting: the whole path of the webhook endpoint (default `lettermint/message-events/`), plus system check `lettermint_django.W002` (webhook served without `LETTERMINT_WEBHOOK_SECRET`)
 - Bulk sending guide in the documentation
 
 ### Changed
