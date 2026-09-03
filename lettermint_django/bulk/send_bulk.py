@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Iterable, Mapping, Sequence
+from email.utils import getaddresses
 from itertools import islice
 from typing import TYPE_CHECKING, Any
 
@@ -24,6 +25,11 @@ logger = logging.getLogger("lettermint_django")
 #: Assumed number of messages Lettermint accepts per batch request.
 #: Lettermint's own documentation is authoritative; override with LETTERMINT_BATCH_SIZE.
 DEFAULT_BATCH_SIZE = 500
+
+#: Keys a batch response may use to name the recipient it answers for.
+#: Lettermint types the batch response as a bare list of dicts, so this is a
+#: best effort: where a response names nobody, the pairing falls back to order.
+RECIPIENT_KEYS = ("recipient", "to", "email")
 
 
 def get_batch_size(batch_size: int | None = None) -> int:
@@ -98,6 +104,11 @@ def send_bulk(
           those messages yourself with ``send_bulk(failed, batch_size=1)``.
         * A timeout is not a confirmed failure: Lettermint may have accepted the
           batch. Check ``LmEmailMessage`` or your webhook events before resending.
+        * Answers are paired with messages on the recipient address where
+          Lettermint names one, and on the order of the request where it does
+          not. An answer that cannot be placed fails its message rather than
+          confirming it under another message's id; those, too, may have gone
+          out, so check before resending.
         * A message without recipients, or whose payload cannot be built, is
           reported as failed and never sent.
         * Never raises for individual messages. Configuration errors (missing
@@ -206,12 +217,66 @@ def _apply_send_wide(payload: dict[str, Any], route: str | None, tag: str | None
             payload[key] = value
 
 
+def _addresses(values: Iterable[Any]) -> set[str]:
+    """The bare email addresses in a list of address strings, lowercased."""
+    strings = [value for value in values if isinstance(value, str)]
+    return {address.lower() for _name, address in getaddresses(strings) if address}
+
+
+def _response_addresses(response: Any) -> set[str]:
+    """The addresses a batch response names, empty when it names none."""
+    if not isinstance(response, Mapping):
+        return set()
+    values: list[Any] = []
+    for key in RECIPIENT_KEYS:
+        value = response.get(key)
+        values.extend(value if isinstance(value, (list, tuple)) else [value])
+    return _addresses(values)
+
+
+def _match_responses(items: Sequence[BulkItem], responses: Sequence[Any]) -> list[Any]:
+    """
+    Pair each item with the response that answers for it, ``None`` when none does.
+
+    Lettermint answers in the order it was asked, and with nothing else to go on
+    that order is the pairing. Where a response names its recipient the address
+    decides instead: a ``message_id`` recorded against the wrong address outlives
+    the send, and the tracking rows are what a later resend reads.
+    """
+    named = [_response_addresses(response) for response in responses]
+
+    positional_holds = len(responses) == len(items) and all(
+        not addresses or addresses & _addresses(item.to)
+        for item, addresses in zip(items, named)
+    )
+    if positional_holds:
+        return list(responses)
+
+    matched: list[Any] = [None] * len(items)
+    taken: set[int] = set()
+    for index, item in enumerate(items):
+        wanted = _addresses(item.to)
+        for position, addresses in enumerate(named):
+            if position not in taken and addresses and addresses & wanted:
+                matched[index] = responses[position]
+                taken.add(position)
+                break
+    return matched
+
+
 def _apply_responses(items: Sequence[BulkItem], responses: Any, bulk_id: str) -> None:
     responses = list(responses or [])
     if len(responses) != len(items):
         logger.warning("Lettermint returned %d batch responses for %d messages.", len(responses), len(items))
-    for index, item in enumerate(items):
-        response = responses[index] if index < len(responses) else None
+
+    for item, response in zip(items, _match_responses(items, responses)):
+        if response is None:
+            item.error = RuntimeError(
+                f"Lettermint returned {len(responses)} responses for {len(items)} messages, "
+                "and none of them could be matched to this one. Check LmEmailMessage or "
+                "your webhook events before resending."
+            )
+            continue
         if not isinstance(response, Mapping) or not response.get("message_id"):
             item.error = RuntimeError(f"Lettermint returned no message_id for this message: {response!r}")
             continue

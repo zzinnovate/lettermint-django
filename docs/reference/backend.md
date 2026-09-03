@@ -36,7 +36,7 @@ Translates a Django `EmailMessage` into the dict the Lettermint API accepts: `fr
 
 ### `send_payloads(payloads)`
 
-Posts a list of payload dicts to the batch endpoint in one request and returns the per-message responses in order. It does not chunk or check Lettermint's limits; whatever Lettermint rejects comes back as the SDK's exception. This is the primitive behind [bulk sending](../getting-started/bulk.md); use `lettermint_django.bulk.send_bulk()` rather than calling it directly.
+Posts a list of payload dicts to the batch endpoint in one request and returns Lettermint's per-message responses, in the order it was asked. `send_bulk()` does not lean on that order alone; see [bulk sending](../getting-started/bulk.md#batches-failures-and-limits). It does not chunk or check Lettermint's limits; whatever Lettermint rejects comes back as the SDK's exception. This is the primitive behind [bulk sending](../getting-started/bulk.md); use `lettermint_django.bulk.send_bulk()` rather than calling it directly.
 
 ## Per-message route and tag
 

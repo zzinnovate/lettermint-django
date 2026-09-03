@@ -118,6 +118,7 @@ Each `BulkItem` has:
 | `error` | The exception that stopped the message, else `None` |
 | `reason` | That error as text, with Lettermint's HTTP status and response body when there is one |
 | `recipient` | The entry you passed to `send_bulk_mail`, else the first `to` address |
+| `to` | The addresses the message was for, without `cc` and `bcc` |
 | `recipients` | All addresses in `to`, `cc` and `bcc` |
 | `payload` | The dict that was sent to Lettermint |
 | `email_message` | The Django message it was built from, or `None` for a payload dict |
@@ -238,6 +239,7 @@ Two things to know when reading these statuses:
     ```
 
 - A timeout is not a confirmed failure: Lettermint may have accepted the batch before the connection dropped. Check `LmEmailMessage` or your webhook events before resending.
+- Answers are matched to messages on the recipient address where Lettermint names one, and on request order where it does not. An answer that cannot be placed leaves its message in `result.failed` with a reason naming the mismatch. Those messages may still have gone out: check `LmEmailMessage` or your webhook events before resending, as with a timeout.
 - A message without recipients, or one whose payload cannot be built (an invalid sender address, say), is reported as failed and never sent.
 
 Assume that Lettermint accepts a limited number of messages per batch request and a limited request size, and that your plan comes with a monthly quota and spend limit beyond which requests are rejected. Those limits are Lettermint's and can change; this package does not enforce them. Check [Lettermint's documentation](https://lettermint.co/docs) for the current numbers and adjust `LETTERMINT_BATCH_SIZE` if needed. Whatever Lettermint rejects comes back per message in `reason`.

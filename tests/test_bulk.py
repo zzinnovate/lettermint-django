@@ -147,15 +147,56 @@ class TestSendBulk:
         assert batch_api.send.call_count == 0
         assert LmEmailMessage.objects.count() == 1
 
-    def test_short_or_bad_batch_response_marks_items_failed(self, batch_api):
+    def test_a_response_without_a_message_id_fails_its_message(self, batch_api):
         batch_api.send_batch.side_effect = None
-        batch_api.send_batch.return_value = [{"message_id": "only_one", "status": "pending"}, {"status": "no id"}]
-        result = send_bulk(make_messages(3))
+        batch_api.send_batch.return_value = [{"message_id": "m_1", "status": "pending"}, {"status": "no id"}]
+        result = send_bulk(make_messages(2))
 
-        assert [item.message_id for item in result] == ["only_one", None, None]
-        assert all(isinstance(item.error, RuntimeError) for item in result.failed)
+        assert [item.message_id for item in result] == ["m_1", None]
+        assert isinstance(result.failed[0].error, RuntimeError)
         assert "no message_id" in result.failed[0].reason
         assert LmEmailMessage.objects.count() == 1
+
+    def test_a_response_that_is_not_a_dict_fails_its_message(self, batch_api):
+        batch_api.send_batch.side_effect = None
+        batch_api.send_batch.return_value = [{"message_id": "m_1", "status": "pending"}, "oops"]
+        result = send_bulk(make_messages(2))
+
+        assert [item.ok for item in result] == [True, False]
+        assert "no message_id" in result.failed[0].reason
+
+    def test_a_short_anonymous_response_fails_every_message_rather_than_guessing(self, batch_api):
+        # Three sent, two answered, and nothing in the answers says which two.
+        # Pairing by position would write a message_id onto the wrong address.
+        batch_api.send_batch.side_effect = None
+        batch_api.send_batch.return_value = [{"message_id": "m_1", "status": "pending"}, {"message_id": "m_2", "status": "pending"}]
+        result = send_bulk(make_messages(3))
+
+        assert result.sent_count == 0
+        assert result.failed_count == 3
+        assert all(isinstance(item.error, RuntimeError) for item in result.failed)
+        assert "2 responses for 3 messages" in result.failed[0].reason
+        assert LmEmailMessage.objects.count() == 0
+
+    def test_a_short_response_that_names_recipients_pairs_on_the_address(self, batch_api):
+        batch_api.send_batch.side_effect = None
+        batch_api.send_batch.return_value = [{"message_id": "m_2", "status": "pending", "recipient": "r2@example.com"}]
+        result = send_bulk(make_messages(3))
+
+        assert [item.message_id for item in result] == [None, None, "m_2"]
+        assert [message.to for message in LmEmailMessage.objects.all()] == [["r2@example.com"]]
+
+    def test_reordered_responses_are_paired_on_the_address_not_the_position(self, batch_api):
+        batch_api.send_batch.side_effect = None
+        batch_api.send_batch.return_value = [
+            {"message_id": "m_for_1", "status": "pending", "recipient": "r1@example.com"},
+            {"message_id": "m_for_0", "status": "pending", "recipient": "R0@Example.com"},
+        ]
+        result = send_bulk(make_messages(2))
+
+        assert [item.message_id for item in result] == ["m_for_0", "m_for_1"]
+        stored = {message.message_id: message.to for message in LmEmailMessage.objects.all()}
+        assert stored == {"m_for_0": ["r0@example.com"], "m_for_1": ["r1@example.com"]}
 
     def test_resending_failed_items_individually_is_one_line(self, batch_api):
         from lettermint import ValidationError
@@ -187,6 +228,7 @@ class TestSendBulk:
         message = EmailMessage(subject="S", body="B", from_email="a@example.com", to=["t@example.com"], cc=["c@example.com"], bcc=["b@example.com"])
         result = send_bulk([message])
         assert result.items[0].recipient == "t@example.com"
+        assert result.items[0].to == ["t@example.com"]
         assert result.items[0].recipients == ["t@example.com", "c@example.com", "b@example.com"]
 
 
