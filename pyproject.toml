@@ -1,6 +1,6 @@
 [project]
 name = "lettermint-django"
-version = "0.4.0a1"
+version = "0.4.0b1"
 description = "Django email backend for Lettermint"
 authors = [{name = "Sjoerd Zaalberg van Zelst", email = "hello@zzinnovate.com"}]
 license = "MIT"
