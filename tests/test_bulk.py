@@ -10,7 +10,7 @@ from django.core.mail import EmailMessage, EmailMultiAlternatives, get_connectio
 
 from lettermint_django import LettermintEmailBackend
 from lettermint_django.bulk import BulkResult, render_bulk_mail, send_bulk, send_bulk_mail
-from lettermint_django.bulk.send_bulk import get_batch_size
+from lettermint_django.bulk.send_bulk import get_batch_size, get_bulk_route
 from lettermint_django.models import LmEmailMessage
 
 
@@ -190,6 +190,104 @@ class TestSendBulk:
         assert result.items[0].recipients == ["t@example.com", "c@example.com", "b@example.com"]
 
 
+class TestBulkRouteAndTag:
+    """The route and tag a whole send goes out on."""
+
+    def test_route_argument_applies_to_every_message(self, batch_api):
+        send_bulk(make_messages(2), route="broadcast")
+
+        payloads = batch_api.send_batch.call_args.args[0]
+        assert [payload["route"] for payload in payloads] == ["broadcast", "broadcast"]
+
+    def test_setting_is_the_default_route_for_bulk(self, settings, batch_api):
+        settings.LETTERMINT_BULK_ROUTE = "broadcast"
+        send_bulk(make_messages(1))
+
+        assert batch_api.send_batch.call_args.args[0][0]["route"] == "broadcast"
+
+    def test_argument_wins_over_the_setting(self, settings, batch_api):
+        settings.LETTERMINT_BULK_ROUTE = "broadcast"
+        send_bulk(make_messages(1), route="newsletter")
+
+        assert batch_api.send_batch.call_args.args[0][0]["route"] == "newsletter"
+
+    def test_bulk_route_overrides_the_backend_default(self, settings, batch_api):
+        settings.LETTERMINT_ROUTE = "transactional"
+        send_bulk(make_messages(1), route="broadcast")
+
+        assert batch_api.send_batch.call_args.args[0][0]["route"] == "broadcast"
+
+    def test_the_backend_default_stands_when_no_bulk_route_is_given(self, settings, batch_api):
+        settings.LETTERMINT_ROUTE = "transactional"
+        send_bulk(make_messages(1))
+
+        assert batch_api.send_batch.call_args.args[0][0]["route"] == "transactional"
+
+    def test_a_message_asking_for_its_own_route_keeps_it(self, batch_api):
+        messages = [*make_messages(1), *make_messages(1, headers={"X-Lettermint-Route": "priority"})]
+        send_bulk(messages, route="broadcast")
+
+        payloads = batch_api.send_batch.call_args.args[0]
+        assert [payload["route"] for payload in payloads] == ["broadcast", "priority"]
+
+    def test_a_prepared_payload_keeps_the_route_it_carries(self, batch_api):
+        prepared = {"from": "a@example.com", "to": ["d@example.com"], "subject": "D", "text": "x", "route": "priority"}
+        plain = {"from": "a@example.com", "to": ["e@example.com"], "subject": "E", "text": "x"}
+        send_bulk([prepared, plain], route="broadcast")
+
+        payloads = batch_api.send_batch.call_args.args[0]
+        assert [payload["route"] for payload in payloads] == ["priority", "broadcast"]
+
+    def test_tag_argument_applies_unless_the_message_brought_its_own(self, batch_api):
+        messages = [*make_messages(1), *make_messages(1, headers={"X-Lettermint-Tag": "own"})]
+        send_bulk(messages, tag="launch-2026")
+
+        payloads = batch_api.send_batch.call_args.args[0]
+        assert [payload["tag"] for payload in payloads] == ["launch-2026", "own"]
+        assert LmEmailMessage.objects.tagged("launch-2026").count() == 1
+
+    def test_no_route_at_all_leaves_the_key_out(self, batch_api):
+        send_bulk(make_messages(1))
+
+        assert "route" not in batch_api.send_batch.call_args.args[0][0]
+
+    def test_a_routeless_send_says_so_once(self, batch_api, caplog):
+        send_bulk(make_messages(4), batch_size=2)
+
+        warnings = [record for record in caplog.records if "no route" in record.message]
+        assert len(warnings) == 1
+        assert "LETTERMINT_BULK_ROUTE" in warnings[0].getMessage()
+
+    def test_a_routed_send_stays_quiet(self, settings, batch_api, caplog):
+        settings.LETTERMINT_BULK_ROUTE = "broadcast"
+        send_bulk(make_messages(2))
+
+        assert not [record for record in caplog.records if "no route" in record.message]
+
+    def test_the_backend_route_is_enough_to_stay_quiet(self, settings, batch_api, caplog):
+        settings.LETTERMINT_ROUTE = "transactional"
+        send_bulk(make_messages(2))
+
+        assert not [record for record in caplog.records if "no route" in record.message]
+
+
+class TestGetBulkRoute:
+    def test_default_is_none(self):
+        assert get_bulk_route() is None
+
+    def test_setting(self, settings):
+        settings.LETTERMINT_BULK_ROUTE = "broadcast"
+        assert get_bulk_route() == "broadcast"
+
+    def test_argument_wins(self, settings):
+        settings.LETTERMINT_BULK_ROUTE = "broadcast"
+        assert get_bulk_route("newsletter") == "newsletter"
+
+    def test_blank_is_no_route(self, settings):
+        settings.LETTERMINT_BULK_ROUTE = "   "
+        assert get_bulk_route() is None
+
+
 class TestGetBatchSize:
     def test_default_is_500(self):
         assert get_batch_size() == 500
@@ -353,6 +451,18 @@ class TestSendBulkMail:
         stored = LmEmailMessage.objects.tagged("invites").order_by("created_at")
         assert [m.to for m in stored] == [["Ann <ann@example.com>"], ["Bob <bob@example.com>"]]
         assert {m.message_id for m in stored} == set(result.message_ids)
+
+    def test_the_bulk_route_setting_reaches_a_templated_send(self, settings, batch_api):
+        settings.LETTERMINT_BULK_ROUTE = "broadcast"
+        send_bulk_mail(["a@example.com"], "News", text="Same text")
+
+        assert batch_api.send_batch.call_args.args[0][0]["route"] == "broadcast"
+
+    def test_an_explicit_route_still_wins_over_the_setting(self, settings, batch_api):
+        settings.LETTERMINT_BULK_ROUTE = "broadcast"
+        send_bulk_mail(["a@example.com"], "News", text="Same text", route="newsletter")
+
+        assert batch_api.send_batch.call_args.args[0][0]["route"] == "newsletter"
 
     def test_same_mail_to_many(self, batch_api):
         result = send_bulk_mail(["a@example.com", "b@example.com", "c@example.com"], "News", text="Same text", batch_size=2)

@@ -98,6 +98,7 @@ This project is actively developed with a clear path toward v1.0.0. Our roadmap 
 | `LETTERMINT_API_KEY` | Yes | - | Your project API token from the Lettermint dashboard |
 | `LETTERMINT_BASE_URL` | No | SDK default | Override the Lettermint API base URL |
 | `LETTERMINT_ROUTE` | No | - | Default route applied to all outgoing emails |
+| `LETTERMINT_BULK_ROUTE` | No | - | Route applied to bulk sends, overriding `LETTERMINT_ROUTE` for those messages |
 | `LETTERMINT_TIMEOUT` | No | SDK default | Request timeout in seconds |
 | `LETTERMINT_WEBHOOK_SECRET` | With tracking | - | Signing secret of your Lettermint webhook |
 | `LETTERMINT_WEBHOOK_PATH` | No | `lettermint/message-events/` | Path of the webhook endpoint |
