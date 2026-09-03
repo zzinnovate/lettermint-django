@@ -55,7 +55,9 @@ lettermint-django is actively developed with a clear path to a stable 1.0 releas
 - [x] **Tags**: `X-Lettermint-Tag` header, stored on `LmEmailMessage.tag`, queryable with `LmEmailMessage.objects.tagged()`
 - [x] **Follow-up**: `LmEmailMessage.bulk_id` ties tracked messages to the send; `from_bulk()`, `not_delivered()` and `not_opened()` for filtering and resending from the caller's own data
 - [x] **Clear outcomes, no retries**: A rejected chunk fails its messages with Lettermint's reason; later chunks are still sent
-- [x] **Configuration**: `LETTERMINT_BATCH_SIZE`
+- [x] **Configuration**: `LETTERMINT_BATCH_SIZE`, `LETTERMINT_BULK_ROUTE`
+- [x] **Routing**: a route and tag per send (`route=`, `tag=`), so list mail stays off the transactional route
+- [x] **Safe pairing**: answers matched to messages on the recipient address where Lettermint names one, never confirming a message under another's `message_id`
 - [x] **Documentation**: Bulk sending guide
 - [x] **Test Coverage**: Payload builder, chunking, failures, rendering
 

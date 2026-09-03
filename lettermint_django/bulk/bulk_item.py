@@ -57,6 +57,16 @@ class BulkItem:
         return text
 
     @property
+    def to(self) -> list[str]:
+        """The addresses in ``to``, without ``cc`` and ``bcc``.
+
+        Who the message was for. Use this, not :attr:`recipients`, to check
+        that an outcome belongs to the person you meant: a copy address would
+        satisfy that check just as happily.
+        """
+        return list((self.payload or {}).get("to") or [])
+
+    @property
     def recipients(self) -> list[str]:
         """All addresses in ``to``, ``cc`` and ``bcc`` of the payload."""
         payload = self.payload or {}

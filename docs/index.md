@@ -86,6 +86,6 @@ msg = EmailMessage(
     from_email="noreply@example.com",
     to=["user@example.com"],
 )
-msg.extra_headers["X-Lettermint-Route"] = "transactional"
+msg.extra_headers["X-Lettermint-Route"] = "app-priority"
 msg.send()
 ```

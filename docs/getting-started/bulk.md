@@ -49,6 +49,32 @@ result = send_bulk_mail(
 
 A recipient's own keys win over `context` when they clash. The templates also get `email`, `name` and `recipient` (the mapping you passed in).
 
+## Routes
+
+A list send produces bounces and complaints that a transactional stream does not, so give bulk its own Lettermint route and keep the two reputations apart. One setting covers every bulk send in the project:
+
+```python
+LETTERMINT_ROUTE = "app-mail"        # slug of the route for everything else
+LETTERMINT_BULK_ROUTE = "app-lists"  # slug of the route for send_bulk() and send_bulk_mail()
+```
+
+Both take a route **slug**. A Lettermint route has a type of its own, `transactional`, `broadcast` or `inbound`, which this package never sees: it passes on the slug you configured. Which type each of your routes has, and which one is the default of your API key, is yours to check in the dashboard.
+
+Set both. A route you do not name is the default route of your API key, and that default is invisible from here: leave either setting empty and that stream rides on whatever the dashboard happens to say today. A bulk send with no route at all logs a warning naming this setting.
+
+Override per send with `route=`, and per message with the `X-Lettermint-Route` header. Highest wins:
+
+| Where | Wins over |
+|---|---|
+| The message's own `X-Lettermint-Route` header, which is what `route=` on `send_bulk_mail()` sets | everything below |
+| `route=` on `send_bulk()` | the settings |
+| `LETTERMINT_BULK_ROUTE` | `LETTERMINT_ROUTE` |
+| `LETTERMINT_ROUTE`, or the `route` of the connection | the default route of your API key |
+
+`tag=` on `send_bulk()` works the same way: it tags the whole send unless a message carries its own `X-Lettermint-Tag`.
+
+A prepared payload dict is left as it was composed: a `route` or `tag` already in it stands, and the send-wide value only fills in what the payload left open.
+
 ## Templates
 
 | Argument | What it is |
@@ -92,6 +118,7 @@ Each `BulkItem` has:
 | `error` | The exception that stopped the message, else `None` |
 | `reason` | That error as text, with Lettermint's HTTP status and response body when there is one |
 | `recipient` | The entry you passed to `send_bulk_mail`, else the first `to` address |
+| `to` | The addresses the message was for, without `cc` and `bcc` |
 | `recipients` | All addresses in `to`, `cc` and `bcc` |
 | `payload` | The dict that was sent to Lettermint |
 | `email_message` | The Django message it was built from, or `None` for a payload dict |
@@ -132,6 +159,8 @@ result = send_bulk(invitations(tokens))
 for item in result.sent:
     item.email_message.token.register_email_sent(item.message_id)
 ```
+
+The per-message `X-Lettermint-Tag` header above is one way; `send_bulk(messages, tag="invites", route="broadcast")` tags and routes the whole send in one place instead.
 
 `send_bulk` uses `connection.build_payload()` for every message, so a backend subclass that adds headers in `_get_passthrough_headers()` applies to bulk sends too.
 
@@ -210,6 +239,7 @@ Two things to know when reading these statuses:
     ```
 
 - A timeout is not a confirmed failure: Lettermint may have accepted the batch before the connection dropped. Check `LmEmailMessage` or your webhook events before resending.
+- Answers are matched to messages on the recipient address where Lettermint names one, and on request order where it does not. An answer that cannot be placed leaves its message in `result.failed` with a reason naming the mismatch. Those messages may still have gone out: check `LmEmailMessage` or your webhook events before resending, as with a timeout.
 - A message without recipients, or one whose payload cannot be built (an invalid sender address, say), is reported as failed and never sent.
 
 Assume that Lettermint accepts a limited number of messages per batch request and a limited request size, and that your plan comes with a monthly quota and spend limit beyond which requests are rejected. Those limits are Lettermint's and can change; this package does not enforce them. Check [Lettermint's documentation](https://lettermint.co/docs) for the current numbers and adjust `LETTERMINT_BATCH_SIZE` if needed. Whatever Lettermint rejects comes back per message in `reason`.

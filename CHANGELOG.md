@@ -4,6 +4,20 @@
 
 ---
 
+## [0.4.0b1] - 2026-09-03
+
+### Added
+
+- `route=` and `tag=` on `send_bulk()`, and a `LETTERMINT_BULK_ROUTE` setting: the route and tag a whole bulk send goes out on. A message with its own `X-Lettermint-Route` or `X-Lettermint-Tag` header keeps it, as does a prepared payload that already names one
+- `BulkItem.to`: the addresses a message was for, without `cc` and `bcc`
+- A bulk send whose messages carry no route logs a warning once, naming `LETTERMINT_BULK_ROUTE`
+
+### Changed
+
+- Batch responses are paired with their message on the recipient address where Lettermint names one, and on request order where it does not. An answer that cannot be placed fails its message instead of confirming it under another message's `message_id`
+
+---
+
 ## [0.4.0a1] - 2026-09-02
 
 ### Added
