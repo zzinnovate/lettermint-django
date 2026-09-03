@@ -75,11 +75,11 @@ msg = EmailMessage(
     from_email="noreply@example.com",
     to=["user@example.com"],
 )
-msg.extra_headers["X-Lettermint-Route"] = "transactional"
+msg.extra_headers["X-Lettermint-Route"] = "app-priority"
 msg.send()
 ```
 
-The `X-Lettermint-Route` header takes precedence over the global `LETTERMINT_ROUTE` setting.
+The `X-Lettermint-Route` header takes the slug of a route in your Lettermint project, and takes precedence over the global `LETTERMINT_ROUTE` setting.
 
 ## Per-message tag
 

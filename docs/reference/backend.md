@@ -40,10 +40,10 @@ Posts a list of payload dicts to the batch endpoint in one request and returns L
 
 ## Per-message route and tag
 
-Set `X-Lettermint-Route` in `extra_headers` to override the global `LETTERMINT_ROUTE` for a single message, and `X-Lettermint-Tag` to tag it:
+Set `X-Lettermint-Route` in `extra_headers` to override the global `LETTERMINT_ROUTE` for a single message, and `X-Lettermint-Tag` to tag it. Both take a route slug and a tag name from your Lettermint project:
 
 ```python
-msg.extra_headers["X-Lettermint-Route"] = "transactional"
+msg.extra_headers["X-Lettermint-Route"] = "app-priority"
 msg.extra_headers["X-Lettermint-Tag"] = "launch-2026"
 ```
 

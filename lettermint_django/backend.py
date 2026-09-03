@@ -34,7 +34,7 @@ class LettermintEmailBackend(BaseEmailBackend):
 
     Per-message overrides via extra_headers:
 
-        email.extra_headers["X-Lettermint-Route"] = "transactional"
+        email.extra_headers["X-Lettermint-Route"] = "app-priority"
         email.extra_headers["X-Lettermint-Tag"] = "welcome-campaign"
 
     When "lettermint_django" is in INSTALLED_APPS, every sent message is stored

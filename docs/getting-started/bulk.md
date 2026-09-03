@@ -58,7 +58,7 @@ LETTERMINT_ROUTE = "app-mail"        # slug of the route for everything else
 LETTERMINT_BULK_ROUTE = "app-lists"  # slug of the route for send_bulk() and send_bulk_mail()
 ```
 
-Both take a route **slug**, not a route type. A Lettermint route is of type `transactional`, `broadcast` or `inbound`, and this package never sees that type: it passes the slug you configured. Which type each of your routes is, and which one is the default of your API key, is yours to check in the dashboard.
+Both take a route **slug**. A Lettermint route has a type of its own, `transactional`, `broadcast` or `inbound`, which this package never sees: it passes on the slug you configured. Which type each of your routes has, and which one is the default of your API key, is yours to check in the dashboard.
 
 Set both. A route you do not name is the default route of your API key, and that default is invisible from here: leave either setting empty and that stream rides on whatever the dashboard happens to say today. A bulk send with no route at all logs a warning naming this setting.
 

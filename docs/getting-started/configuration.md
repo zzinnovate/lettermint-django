@@ -29,7 +29,8 @@ import os
 
 EMAIL_BACKEND = "lettermint_django.LettermintEmailBackend"
 LETTERMINT_API_KEY = os.getenv("LETTERMINT_API_KEY")
-LETTERMINT_ROUTE = os.getenv("LETTERMINT_ROUTE", "transactional")  # optional default route
+LETTERMINT_ROUTE = os.getenv("LETTERMINT_ROUTE")  # optional, slug of the default route
+LETTERMINT_BULK_ROUTE = os.getenv("LETTERMINT_BULK_ROUTE")  # optional, slug of the route for bulk sends
 LETTERMINT_TIMEOUT = 10  # optional, seconds
 LETTERMINT_WEBHOOK_SECRET = os.getenv("LETTERMINT_WEBHOOK_SECRET")  # only with tracking
 ```
