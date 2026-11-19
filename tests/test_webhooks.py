@@ -518,6 +518,12 @@ class TestWebhookPrivacy:
         assert event.reason == "550 5.1.1 User unknown"
         assert event.reason_code == "5.1.1"
 
+    def test_minimal_data_without_enhanced_status_code_drops_response(self, post_webhook, sent_message, settings):
+        settings.LETTERMINT_TRACKING_EVENT_DATA = "minimal"
+        post_webhook(webhook_payload("message.delivered", response={"status_code": 250, "content": "250 OK"}))
+
+        assert LmEmailEvent.objects.get().data == {"message_id": "msg_test_1", "tag": None, "tags": []}
+
     def test_no_data(self, post_webhook, sent_message, settings):
         settings.LETTERMINT_TRACKING_EVENT_DATA = "none"
         post_webhook(webhook_payload("message.failed", reason="Blocked", reason_code="blocked"))
