@@ -34,6 +34,7 @@ def send_bulk_mail(
     connection: LettermintEmailBackend | None = None,
     batch_size: int | None = None,
     bulk_id: str | None = None,
+    track: bool = True,
 ) -> BulkResult:
     """Render one mail per recipient with Django templates and send them in batches.
 
@@ -92,6 +93,7 @@ def send_bulk_mail(
         batch_size: Messages per request; defaults to ``LETTERMINT_BATCH_SIZE`` (500).
         bulk_id: Identifier for this send; generated when omitted. See
             :func:`send_bulk`.
+        track: ``False`` records none of these messages as ``LmEmailMessage``.
 
     Returns:
         A :class:`BulkResult`. ``item.recipient`` is the entry you passed in,
@@ -124,4 +126,4 @@ def send_bulk_mail(
         request=request,
         language=language,
     )
-    return send_bulk(messages, connection=connection, batch_size=batch_size, bulk_id=bulk_id)
+    return send_bulk(messages, connection=connection, batch_size=batch_size, bulk_id=bulk_id, track=track)

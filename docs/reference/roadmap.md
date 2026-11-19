@@ -2,7 +2,7 @@
 
 lettermint-django is actively developed with a clear path to a stable 1.0 release. Below is our planned evolution.
 
-**Current Version:** v0.4.x (email backend, tracking, bulk sending)  
+**Current Version:** v0.4.x (email backend, tracking, bulk sending, privacy controls)  
 **Target:** v0.3.x → v0.4.x → v0.5.x → v1.0.0 (full feature set)
 
 ---
@@ -41,11 +41,11 @@ lettermint-django is actively developed with a clear path to a stable 1.0 releas
 
 ---
 
-## v0.4.0 - Bulk Sending
+## v0.4.0 - Bulk Sending & Privacy Controls
 
 **Target:** Q3 2026
 
-**Goal:** Send one mail to many recipients, or a unique mail per recipient, through Lettermint's batch endpoint.
+**Goal:** Send one mail to many recipients, or a unique mail per recipient, through Lettermint's batch endpoint, and let a site decide what tracking stores about recipients, and for how long.
 
 ### Features
 
@@ -55,9 +55,17 @@ lettermint-django is actively developed with a clear path to a stable 1.0 releas
 - [x] **Tags**: `X-Lettermint-Tag` header, stored on `LmEmailMessage.tag`, queryable with `LmEmailMessage.objects.tagged()`
 - [x] **Follow-up**: `LmEmailMessage.bulk_id` ties tracked messages to the send; `from_bulk()`, `not_delivered()` and `not_opened()` for filtering and resending from the caller's own data
 - [x] **Clear outcomes, no retries**: A rejected chunk fails its messages with Lettermint's reason; later chunks are still sent
-- [x] **Configuration**: `LETTERMINT_BATCH_SIZE`
-- [x] **Documentation**: Bulk sending guide
-- [x] **Test Coverage**: Payload builder, chunking, failures, rendering
+- [x] **Configuration**: `LETTERMINT_BATCH_SIZE`, `LETTERMINT_BULK_ROUTE`
+- [x] **Routing**: a route and tag per send (`route=`, `tag=`), so list mail stays off the transactional route
+- [x] **Safe pairing**: answers matched to messages on the recipient address where Lettermint names one, never confirming a message under another's `message_id`
+- [x] **Tracking switch**: `LETTERMINT_TRACKING = False` stops storing without removing the app
+- [x] **Per-message opt-out**: `X-Lettermint-Track: false` header, `track=False` on `send_bulk()` and `send_bulk_mail()`
+- [x] **Known messages only**: `LETTERMINT_TRACK_UNKNOWN_MESSAGES = False` drops events of messages this app did not record
+- [x] **Store less**: `LETTERMINT_TRACKING_SUBJECT`, `LETTERMINT_TRACKING_EVENT_DATA` (`full`, `minimal`, `none`), `LETTERMINT_TRACKING_RECIPIENTS` (`plain`, `hashed`), with lookups and admin search by plain address
+- [x] **Retention**: `LETTERMINT_TRACKING_RETENTION_DAYS` and `manage.py lettermint_prune`
+- [x] **System checks**: `W003` (no retention, at `check --deploy`), `E001` (invalid privacy setting)
+- [x] **Documentation**: Bulk sending guide, privacy section in the tracking guide
+- [x] **Test Coverage**: Payload builder, chunking, failures, rendering, every privacy setting, pruning, checks
 
 ### What Users Get
 
@@ -65,12 +73,18 @@ lettermint-django is actively developed with a clear path to a stable 1.0 releas
 - One `message_id` (and tracking row) per recipient, ready to join with webhook events
 - Render in one place and send in another: payload dicts are JSON, so they fit a queue or a serverless function
 - Guest-list style personalisation: import addresses, generate links, send in one call
+- Bounce and delivery tracking without subjects, raw payloads or plain addresses
+- No rows at all for mail nobody looks up again, such as login codes
+- A retention that is enforced by one scheduled command
 
 ### Non-Goals
 
 - Server-side templates or merge tags (Lettermint has none; rendering happens in Django)
 - Retries, throttling or enforcing Lettermint's limits (the caller's responsibility)
 - Async task processing
+- Scheduling the prune (the site's scheduler runs it)
+- Rewriting rows stored before a privacy setting changed
+- Encrypting stored data at rest
 
 ---
 

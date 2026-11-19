@@ -129,3 +129,58 @@ class TestAdmin:
             assert model_admin.check() == []
             assert model_admin.has_add_permission(None) is False
             assert model_admin.has_change_permission(None) is False
+
+
+class TestForRecipientHashed:
+    def test_finds_hashed_row_by_plain_address(self, settings):
+        from lettermint_django.tracking.store_address import store_address
+
+        settings.LETTERMINT_TRACKING_RECIPIENTS = "hashed"
+        msg = make_message("m1")
+        make_event("e1", msg, "message.delivered", store_address("ann@example.com"))
+
+        assert LmEmailEvent.objects.for_recipient("Ann@Example.com").get().event_id == "e1"
+
+    def test_changed_key_finds_nothing(self, settings):
+        from lettermint_django.tracking.store_address import store_address
+
+        settings.LETTERMINT_TRACKING_RECIPIENTS = "hashed"
+        msg = make_message("m1")
+        make_event("e1", msg, "message.delivered", store_address("ann@example.com"))
+
+        settings.LETTERMINT_TRACKING_HASH_KEY = "rotated"
+        assert not LmEmailEvent.objects.for_recipient("ann@example.com").exists()
+
+
+class TestAdminHashedSearch:
+    def search(self, model, term):
+        from django.test import RequestFactory
+
+        model_admin = admin.site._registry[model]
+        queryset, _ = model_admin.get_search_results(RequestFactory().get("/"), model.objects.all(), term)
+        return queryset
+
+    def make_hashed_rows(self, settings):
+        from lettermint_django.tracking.store_address import store_address
+
+        settings.LETTERMINT_TRACKING_RECIPIENTS = "hashed"
+        ann = LmEmailMessage.objects.create(message_id="m_ann", from_email="a@example.com", to=[store_address("ann@example.com")])
+        bob = LmEmailMessage.objects.create(message_id="m_bob", from_email="a@example.com", to=[store_address("bob@example.com")])
+        make_event("e_ann", ann, "message.delivered", store_address("ann@example.com"))
+        make_event("e_bob", bob, "message.delivered", store_address("bob@example.com"))
+
+    def test_plain_address_finds_hashed_rows(self, settings):
+        self.make_hashed_rows(settings)
+        assert [m.message_id for m in self.search(LmEmailMessage, "Ann@Example.com")] == ["m_ann"]
+        assert [e.event_id for e in self.search(LmEmailEvent, "ann@example.com")] == ["e_ann"]
+        assert [e.event_id for e in self.search(LmEmailEvent, '"ann@example.com"')] == ["e_ann"]
+
+    def test_other_terms_are_searched_as_typed(self, settings):
+        self.make_hashed_rows(settings)
+        assert [m.message_id for m in self.search(LmEmailMessage, "m_bob")] == ["m_bob"]
+        assert not self.search(LmEmailEvent, "@example.com").exists()
+
+    def test_plain_mode_is_untouched(self):
+        msg = make_message("m1")
+        make_event("e1", msg, "message.delivered", "ann@example.com")
+        assert [e.event_id for e in self.search(LmEmailEvent, "example.com")] == ["e1"]

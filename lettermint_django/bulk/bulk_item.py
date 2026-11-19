@@ -21,6 +21,9 @@ class BulkItem:
         status: Lettermint's initial status, when accepted.
         error: The exception that stopped the message, else ``None``.
         response: Lettermint's raw response for this message, when accepted.
+        track: Whether the message is recorded as an ``LmEmailMessage`` once
+            accepted (``track=`` of the send, and the message's
+            ``X-Lettermint-Track`` header).
 
     ``ok`` says whether Lettermint accepted it; ``reason`` explains a failure in
     Lettermint's own words (HTTP status and response body included).
@@ -32,6 +35,7 @@ class BulkItem:
     status: str | None = None
     error: Exception | None = None
     response: dict[str, Any] | None = field(default=None, repr=False)
+    track: bool = field(default=True, repr=False)
 
     @property
     def ok(self) -> bool:

@@ -89,7 +89,15 @@ Set `X-Lettermint-Tag` to categorise a message in Lettermint, for example by cam
 msg.extra_headers["X-Lettermint-Tag"] = "launch-2026"
 ```
 
-Neither header is passed on as an email header.
+## Leaving a message out of tracking
+
+A one-time code or a confirmation nobody will look up again does not need a tracking row. With [tracking](tracking.md) installed, this sends the message without recording it:
+
+```python
+msg.extra_headers["X-Lettermint-Track"] = "false"
+```
+
+None of these headers is passed on as an email header.
 
 ## Many recipients
 

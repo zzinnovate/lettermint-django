@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 
 ROUTE_HEADER = "X-Lettermint-Route"
 TAG_HEADER = "X-Lettermint-Tag"
+TRACK_HEADER = "X-Lettermint-Track"
+#: ``X-Lettermint-Track`` values that keep a message out of tracking.
+TRACK_OFF_VALUES = frozenset({"false", "0", "no", "off"})
 
 
 class LettermintEmailBackend(BaseEmailBackend):
@@ -36,9 +39,11 @@ class LettermintEmailBackend(BaseEmailBackend):
 
         email.extra_headers["X-Lettermint-Route"] = "app-priority"
         email.extra_headers["X-Lettermint-Tag"] = "welcome-campaign"
+        email.extra_headers["X-Lettermint-Track"] = "false"   # not recorded
 
     When "lettermint_django" is in INSTALLED_APPS, every sent message is stored
-    as an LmEmailMessage so webhook events can be matched to it later.
+    as an LmEmailMessage so webhook events can be matched to it later, unless
+    LETTERMINT_TRACKING is False or the message carries X-Lettermint-Track: false.
 
     Bulk sending goes through ``lettermint_django.bulk.send_bulk``, which uses
     :meth:`build_payload` and :meth:`send_payloads` to hit the batch endpoint.
@@ -125,7 +130,7 @@ class LettermintEmailBackend(BaseEmailBackend):
         Returns Lettermint's response (``message_id``, ``status``), or ``None``
         when the message has no recipients or the connection is not open. SDK
         errors propagate. With tracking installed the message is recorded as
-        an ``LmEmailMessage``.
+        an ``LmEmailMessage``, unless its ``X-Lettermint-Track`` header is off.
         """
         if not email_message.recipients():
             return None
@@ -136,7 +141,8 @@ class LettermintEmailBackend(BaseEmailBackend):
         payload = self.build_payload(email_message)
         mail = self._apply_payload(self.connection.email, payload)
         response = mail.send()
-        record_sent(payload, response)
+        if self._resolve_track(email_message):
+            record_sent(payload, response)
         return response
 
     # Kept for backwards compatibility with 0.3.x.
@@ -254,6 +260,12 @@ class LettermintEmailBackend(BaseEmailBackend):
         extra_headers = email_message.extra_headers or {}
         return str(extra_headers.get(TAG_HEADER, "")).strip() or None
 
+    @staticmethod
+    def _resolve_track(email_message: EmailMessage) -> bool:
+        """False when the X-Lettermint-Track header is ``false``, ``0``, ``no`` or ``off``."""
+        extra_headers = email_message.extra_headers or {}
+        return str(extra_headers.get(TRACK_HEADER, "")).strip().lower() not in TRACK_OFF_VALUES
+
     def _get_passthrough_headers(self, email_message: EmailMessage) -> dict[str, str]:
         """Return extra headers minus the lettermint-specific ones."""
         if not email_message.extra_headers:
@@ -261,6 +273,7 @@ class LettermintEmailBackend(BaseEmailBackend):
         headers = dict(email_message.extra_headers)
         headers.pop(ROUTE_HEADER, None)
         headers.pop(TAG_HEADER, None)
+        headers.pop(TRACK_HEADER, None)
         return headers
 
     @staticmethod

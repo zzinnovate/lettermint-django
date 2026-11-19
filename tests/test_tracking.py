@@ -3,10 +3,12 @@
 import logging
 from unittest.mock import patch
 
+import pytest
 from django.core.mail import EmailMessage
 
 from lettermint_django import LettermintEmailBackend
 from lettermint_django.models import LmEmailMessage
+from lettermint_django.tracking.store_address import store_address
 
 
 class TestRecordOnSend:
@@ -113,3 +115,77 @@ class TestRecordOnSend:
         assert "Failed to record sent Lettermint message msg_test_1" in caplog.text
         # The savepoint rolled back, so the surrounding transaction still works.
         assert LmEmailMessage.objects.count() == 1
+
+
+class TestTrackingSwitch:
+    def test_setting_off_records_nothing(self, simple_email, mock_lettermint, settings):
+        settings.LETTERMINT_TRACKING = False
+        assert LettermintEmailBackend().send_messages([simple_email]) == 1
+        assert LmEmailMessage.objects.count() == 0
+
+
+class TestTrackHeader:
+    @pytest.mark.parametrize("value", ["false", "0", "no", "off", " FALSE ", "Off"])
+    def test_header_off_records_nothing_and_stays_out_of_the_payload(self, simple_email, mock_lettermint, value):
+        _, _, builder = mock_lettermint
+        simple_email.extra_headers["X-Lettermint-Track"] = value
+        simple_email.extra_headers["X-Custom"] = "kept"
+
+        assert LettermintEmailBackend().send_messages([simple_email]) == 1
+
+        assert LmEmailMessage.objects.count() == 0
+        builder.headers.assert_called_once_with({"X-Custom": "kept"})
+
+    @pytest.mark.parametrize("value", ["true", "1", "yes", ""])
+    def test_other_values_keep_tracking(self, simple_email, mock_lettermint, value):
+        simple_email.extra_headers["X-Lettermint-Track"] = value
+        LettermintEmailBackend().send_messages([simple_email])
+        assert LmEmailMessage.objects.count() == 1
+
+    def test_build_payload_drops_the_header(self, simple_email):
+        simple_email.extra_headers["X-Lettermint-Track"] = "false"
+        assert "headers" not in LettermintEmailBackend().build_payload(simple_email)
+
+
+class TestStoreLess:
+    def test_subject_off_stores_empty_subject(self, simple_email, mock_lettermint, settings):
+        settings.LETTERMINT_TRACKING_SUBJECT = False
+        LettermintEmailBackend().send_messages([simple_email])
+        assert LmEmailMessage.objects.get().subject == ""
+
+    def test_hashed_recipients(self, mock_lettermint, settings):
+        settings.LETTERMINT_TRACKING_RECIPIENTS = "hashed"
+        email = EmailMessage(
+            subject="S",
+            body="B",
+            from_email="a@example.com",
+            to=["Ann <Ann@Example.com>"],
+            cc=["c@example.com"],
+            bcc=["b@example.com"],
+        )
+        LettermintEmailBackend().send_messages([email])
+
+        msg = LmEmailMessage.objects.get()
+        assert msg.to == [store_address("ann@example.com")]
+        assert msg.cc == [store_address("c@example.com")]
+        assert msg.bcc == [store_address("b@example.com")]
+        assert len(msg.to[0]) == 64 and "@" not in msg.to[0]
+        assert msg.from_email == "a@example.com"
+
+
+class TestStoreAddress:
+    def test_plain_is_unchanged(self):
+        assert store_address("Ann <ann@example.com>") == "Ann <ann@example.com>"
+        assert store_address(None) == ""
+
+    def test_hashed_ignores_case_whitespace_and_display_name(self, settings):
+        settings.LETTERMINT_TRACKING_RECIPIENTS = "hashed"
+        assert store_address(" ANN@example.com ") == store_address("Ann <ann@example.com>")
+        assert store_address("ann@example.com") != store_address("bob@example.com")
+        assert store_address("") == ""
+
+    def test_hash_key_falls_back_to_secret_key(self, settings):
+        settings.LETTERMINT_TRACKING_RECIPIENTS = "hashed"
+        with_secret_key = store_address("ann@example.com")
+        settings.LETTERMINT_TRACKING_HASH_KEY = "another-key"
+        assert store_address("ann@example.com") != with_secret_key

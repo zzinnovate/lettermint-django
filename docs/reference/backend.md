@@ -45,6 +45,7 @@ Set `X-Lettermint-Route` in `extra_headers` to override the global `LETTERMINT_R
 ```python
 msg.extra_headers["X-Lettermint-Route"] = "app-priority"
 msg.extra_headers["X-Lettermint-Tag"] = "launch-2026"
+msg.extra_headers["X-Lettermint-Track"] = "false"   # sent, but not recorded by tracking
 ```
 
 Both headers are consumed by the backend and not sent as email headers.
