@@ -12,7 +12,7 @@
 - System checks `lettermint_django.W003` (tracking on without a retention, reported by `check --deploy`) and `lettermint_django.E001` (invalid privacy setting)
 - Privacy section in the tracking guide
 
-All defaults keep the behaviour of 0.4.
+All defaults keep the behaviour of 0.4.0b1.
 
 ---
 
