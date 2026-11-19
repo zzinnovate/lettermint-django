@@ -12,6 +12,10 @@
 - System checks `lettermint_django.W003` (tracking on without a retention, reported by `check --deploy`) and `lettermint_django.E001` (invalid privacy setting)
 - Privacy section in the tracking guide
 
+### Fixed
+
+- Pin `lettermint` below 3: the 3.0 SDK is a breaking release, and a fresh install of 0.4.0b1 pulled it in and failed to send or to verify webhooks
+
 All defaults keep the behaviour of 0.4.0b1.
 
 ---
