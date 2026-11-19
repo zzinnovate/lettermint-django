@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING
 from django.db import transaction
 
 from .enabled import is_tracking_enabled
+from .privacy_settings import store_subject
+from .store_address import store_address
 
 if TYPE_CHECKING:
     from ..models import LmEmailMessage
@@ -23,7 +25,9 @@ def record_sent(
 
     ``payload`` is the dict that was sent to Lettermint (see
     ``LettermintEmailBackend.build_payload``), ``response`` the dict Lettermint
-    returned for it; ``bulk_id`` marks the ``send_bulk`` call it belonged to. Never raises: a tracking failure must not turn a sent
+    returned for it; ``bulk_id`` marks the ``send_bulk`` call it belonged to.
+    Recipients and subject are stored as the privacy settings say (see
+    ``store_address``). Never raises: a tracking failure must not turn a sent
     email into an error. Returns the created instance, or ``None``.
     """
     if not is_tracking_enabled():
@@ -46,10 +50,10 @@ def record_sent(
             return LmEmailMessage.objects.create(
                 message_id=message_id,
                 from_email=str(payload.get("from") or ""),
-                to=list(payload.get("to") or []),
-                cc=list(payload.get("cc") or []),
-                bcc=list(payload.get("bcc") or []),
-                subject=str(payload.get("subject") or ""),
+                to=[store_address(address) for address in payload.get("to") or []],
+                cc=[store_address(address) for address in payload.get("cc") or []],
+                bcc=[store_address(address) for address in payload.get("bcc") or []],
+                subject=str(payload.get("subject") or "") if store_subject() else "",
                 route=str(payload.get("route") or ""),
                 tag=str(payload.get("tag") or ""),
                 bulk_id=str(bulk_id or ""),

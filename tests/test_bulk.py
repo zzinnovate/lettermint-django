@@ -510,3 +510,33 @@ class TestSendBulkMail:
         result = send_bulk_mail(["a@example.com", "b@example.com", "c@example.com"], "News", text="Same text", batch_size=2)
         assert result.sent_count == 3
         assert batch_api.send_batch.call_count == 2
+
+
+class TestBulkTrack:
+    def test_track_false_records_nothing(self, batch_api):
+        result = send_bulk(make_messages(3), track=False)
+        assert result.sent_count == 3
+        assert LmEmailMessage.objects.count() == 0
+
+    def test_header_leaves_out_only_that_message(self, batch_api):
+        messages = make_messages(3)
+        messages[1].extra_headers["X-Lettermint-Track"] = "false"
+
+        result = send_bulk(messages)
+
+        assert result.sent_count == 3
+        assert [item.track for item in result] == [True, False, True]
+        assert set(LmEmailMessage.objects.values_list("message_id", flat=True)) == {
+            result.items[0].message_id,
+            result.items[2].message_id,
+        }
+        assert "headers" not in batch_api.send_batch.call_args.args[0][1]
+
+    def test_track_false_wins_over_payload_dicts(self, batch_api):
+        payload = LettermintEmailBackend().build_payload(make_messages(1)[0])
+        send_bulk([payload], track=False)
+        assert LmEmailMessage.objects.count() == 0
+
+    def test_send_bulk_mail_passes_track(self, batch_api):
+        send_bulk_mail(["ann@example.com"], "Hi", text="Hello", track=False)
+        assert LmEmailMessage.objects.count() == 0

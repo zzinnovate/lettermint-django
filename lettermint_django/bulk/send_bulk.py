@@ -7,18 +7,15 @@ import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from email.utils import getaddresses
 from itertools import islice
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from django.conf import settings
 from django.core.mail import EmailMessage, get_connection
 
-from ..backend import ROUTE_HEADER, TAG_HEADER
+from ..backend import ROUTE_HEADER, TAG_HEADER, LettermintEmailBackend
 from ..tracking import record_sent
 from .bulk_item import BulkItem
 from .bulk_result import BulkResult
-
-if TYPE_CHECKING:
-    from ..backend import LettermintEmailBackend
 
 logger = logging.getLogger("lettermint_django")
 
@@ -65,6 +62,7 @@ def send_bulk(
     bulk_id: str | None = None,
     route: str | None = None,
     tag: str | None = None,
+    track: bool = True,
 ) -> BulkResult:
     """Send many messages through Lettermint's batch endpoint and report per message.
 
@@ -90,6 +88,10 @@ def send_bulk(
             and so does a prepared payload that already names a route.
         tag: Lettermint tag for this send, stored on ``LmEmailMessage.tag``. A
             message carrying its own ``X-Lettermint-Tag`` header keeps it.
+        track: ``False`` records none of the messages as ``LmEmailMessage``.
+            With ``True`` an ``EmailMessage`` whose ``X-Lettermint-Track``
+            header is ``false`` is still left out; a payload dict carries no
+            such header, so for those ``track`` alone decides.
 
     Returns:
         A :class:`BulkResult` with one :class:`BulkItem` per input, in order:
@@ -147,7 +149,7 @@ def send_bulk(
             connection.open()
             opened = True
 
-        items = [_prepare(connection, message, bulk_route, tag) for message in chunk]
+        items = [_prepare(connection, message, bulk_route, tag, track) for message in chunk]
         result.items.extend(items)
 
         sendable = [item for item in items if item.error is None]
@@ -182,15 +184,16 @@ def _prepare(
     message: EmailMessage | Mapping[str, Any],
     route: str | None = None,
     tag: str | None = None,
+    track: bool = True,
 ) -> BulkItem:
     """Turn one input into a BulkItem with a payload, or with the error that prevented it."""
     if isinstance(message, Mapping):
-        item = BulkItem(payload=dict(message))
+        item = BulkItem(payload=dict(message), track=track)
         # A prepared payload was composed deliberately, somewhere else and
         # possibly long ago; only fill in what it left open.
         _apply_send_wide(item.payload, route, tag, asked_for=set(item.payload))
     else:
-        item = BulkItem(email_message=message)
+        item = BulkItem(email_message=message, track=track and LettermintEmailBackend._resolve_track(message))
         try:
             item.payload = connection.build_payload(message)
         except Exception as exc:
@@ -283,4 +286,5 @@ def _apply_responses(items: Sequence[BulkItem], responses: Any, bulk_id: str) ->
         item.response = dict(response)
         item.message_id = response.get("message_id")
         item.status = response.get("status")
-        record_sent(item.payload, response, bulk_id=bulk_id)
+        if item.track:
+            record_sent(item.payload, response, bulk_id=bulk_id)

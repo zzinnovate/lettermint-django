@@ -60,7 +60,7 @@ path("", include("lettermint_django.urls")),
 python manage.py migrate lettermint_django
 ```
 
-Point a webhook in the Lettermint dashboard at `/lettermint/message-events/` (change it with `LETTERMINT_WEBHOOK_PATH`). Query `LmEmailMessage` and `LmEmailEvent`, or connect to the `lm_email_bounced` signal. See the [tracking guide](https://zzinnovate.github.io/lettermint-django/getting-started/tracking/).
+Point a webhook in the Lettermint dashboard at `/lettermint/message-events/` (change it with `LETTERMINT_WEBHOOK_PATH`). Query `LmEmailMessage` and `LmEmailEvent`, or connect to the `lm_email_bounced` signal. Settings control what is stored (subjects, event data, hashed addresses), `X-Lettermint-Track: false` skips a message, and `manage.py lettermint_prune` enforces a retention. See the [tracking guide](https://zzinnovate.github.io/lettermint-django/getting-started/tracking/).
 
 ## Bulk sending
 
@@ -86,7 +86,7 @@ See the [bulk sending guide](https://zzinnovate.github.io/lettermint-django/gett
 This project is actively developed with a clear path toward v1.0.0. Our roadmap includes email tracking, bounce monitoring, and engagement analytics.
 
 - **Current:** v0.4.x (email backend, delivery tracking via webhooks, bulk sending)
-- **Next:** v0.5.0 (opens, clicks, analytics)
+- **Next:** v0.5.0 (privacy controls for tracking), then v0.6.0 (opens, clicks, analytics)
 - **Planned:** v1.0.0 (production-ready)
 
 [View the full roadmap →](https://zzinnovate.github.io/lettermint-django/reference/roadmap/)
@@ -103,6 +103,10 @@ This project is actively developed with a clear path toward v1.0.0. Our roadmap 
 | `LETTERMINT_WEBHOOK_SECRET` | With tracking | - | Signing secret of your Lettermint webhook |
 | `LETTERMINT_WEBHOOK_PATH` | No | `lettermint/message-events/` | Path of the webhook endpoint |
 | `LETTERMINT_BATCH_SIZE` | No | 500 | Messages per request for bulk sending |
+| `LETTERMINT_TRACKING` | No | `True` | `False` switches tracking off without removing the app |
+| `LETTERMINT_TRACKING_RETENTION_DAYS` | No | - | Days `lettermint_prune` keeps tracking rows |
+
+The other privacy settings are in the [settings reference](https://zzinnovate.github.io/lettermint-django/reference/settings/).
 
 ## Per-message Route
 

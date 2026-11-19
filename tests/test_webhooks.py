@@ -473,3 +473,68 @@ class TestSignals:
         assert response.status_code == 200
         assert "Signal receiver" in caplog.text
         assert LmEmailEvent.objects.count() == 1
+
+
+class TestWebhookPrivacy:
+    def test_tracking_setting_off_acknowledges_without_storing(self, post_webhook, sent_message, settings):
+        settings.LETTERMINT_TRACKING = False
+        response = post_webhook(webhook_payload("message.delivered"))
+        assert response.status_code == 200
+        assert response.json()["stored"] is False
+        assert LmEmailEvent.objects.count() == 0
+        sent_message.refresh_from_db()
+        assert sent_message.status == "pending"
+
+    def test_unknown_message_ignored_when_setting_off(self, post_webhook, settings):
+        settings.LETTERMINT_TRACK_UNKNOWN_MESSAGES = False
+        response = post_webhook(webhook_payload("message.delivered", message_id="msg_elsewhere"))
+        assert response.status_code == 200
+        assert response.json()["stored"] is False
+        assert LmEmailEvent.objects.count() == 0
+
+    def test_known_message_still_stored_when_setting_off(self, post_webhook, sent_message, settings):
+        settings.LETTERMINT_TRACK_UNKNOWN_MESSAGES = False
+        assert post_webhook(webhook_payload("message.delivered")).json()["stored"] is True
+        assert LmEmailEvent.objects.get().email_message == sent_message
+
+    def test_full_data_by_default(self, post_webhook, sent_message):
+        post_webhook(webhook_payload("message.hard_bounced", response=BOUNCE_RESPONSE))
+        data = LmEmailEvent.objects.get().data
+        assert data["subject"] == "Hello"
+        assert data["recipient"] == "recipient@example.com"
+        assert data["response"] == BOUNCE_RESPONSE
+
+    def test_minimal_data(self, post_webhook, sent_message, settings):
+        settings.LETTERMINT_TRACKING_EVENT_DATA = "minimal"
+        post_webhook(webhook_payload("message.hard_bounced", response=BOUNCE_RESPONSE, tag="invites"))
+
+        event = LmEmailEvent.objects.get()
+        assert event.data == {
+            "message_id": "msg_test_1",
+            "tag": "invites",
+            "tags": [],
+            "response": {"enhanced_status_code": "5.1.1"},
+        }
+        assert event.reason == "550 5.1.1 User unknown"
+        assert event.reason_code == "5.1.1"
+
+    def test_no_data(self, post_webhook, sent_message, settings):
+        settings.LETTERMINT_TRACKING_EVENT_DATA = "none"
+        post_webhook(webhook_payload("message.failed", reason="Blocked", reason_code="blocked"))
+        event = LmEmailEvent.objects.get()
+        assert event.data == {}
+        assert (event.reason, event.reason_code) == ("Blocked", "blocked")
+
+    def test_subject_off_drops_it_from_full_data(self, post_webhook, sent_message, settings):
+        settings.LETTERMINT_TRACKING_SUBJECT = False
+        post_webhook(webhook_payload("message.delivered"))
+        assert "subject" not in LmEmailEvent.objects.get().data
+
+    def test_hashed_recipient_on_column_and_data(self, post_webhook, sent_message, settings):
+        settings.LETTERMINT_TRACKING_RECIPIENTS = "hashed"
+        post_webhook(webhook_payload("message.hard_bounced", recipient="Recipient@Example.com"))
+
+        event = LmEmailEvent.objects.get()
+        assert "@" not in event.recipient
+        assert event.data["recipient"] == event.recipient
+        assert LmEmailEvent.objects.for_recipient("recipient@example.com").get() == event

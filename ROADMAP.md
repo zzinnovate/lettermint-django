@@ -3,7 +3,7 @@
 lettermint-django is actively developed with a clear path to a stable 1.0 release. Below is our planned evolution.
 
 **Current Version:** v0.4.x (email backend, tracking, bulk sending)  
-**Target:** v0.3.x → v0.4.x → v0.5.x → v1.0.0 (full feature set)
+**Target:** v0.3.x → v0.4.x → v0.5.x → v0.6.x → v1.0.0 (full feature set)
 
 ---
 
@@ -76,7 +76,38 @@ lettermint-django is actively developed with a clear path to a stable 1.0 releas
 
 ---
 
-## v0.5.0 - Advanced Tracking & Analytics
+## v0.5.0 - Privacy Controls
+
+**Target:** Q3 2026
+
+**Goal:** Let a site decide what tracking stores about recipients, and for how long.
+
+### Features
+
+- [x] **Switch**: `LETTERMINT_TRACKING = False` stops storing without removing the app
+- [x] **Per-message opt-out**: `X-Lettermint-Track: false` header, `track=False` on `send_bulk()` and `send_bulk_mail()`
+- [x] **Known messages only**: `LETTERMINT_TRACK_UNKNOWN_MESSAGES = False` drops events of messages this app did not record
+- [x] **Store less**: `LETTERMINT_TRACKING_SUBJECT`, `LETTERMINT_TRACKING_EVENT_DATA` (`full`, `minimal`, `none`), `LETTERMINT_TRACKING_RECIPIENTS` (`plain`, `hashed`), with lookups and admin search by plain address
+- [x] **Retention**: `LETTERMINT_TRACKING_RETENTION_DAYS` and `manage.py lettermint_prune`
+- [x] **System checks**: `W003` (no retention, at `check --deploy`), `E001` (invalid privacy setting)
+- [x] **Documentation**: Privacy section in the tracking guide
+- [x] **Test Coverage**: Every setting, the header, bulk opt-out, pruning, checks
+
+### What Users Get
+
+- Bounce and delivery tracking without subjects, raw payloads or plain addresses
+- No rows at all for mail nobody looks up again, such as login codes
+- A retention that is enforced by one scheduled command
+
+### Non-Goals
+
+- Scheduling the prune (the site's scheduler runs it)
+- Rewriting rows stored before a setting changed
+- Encrypting stored data at rest
+
+---
+
+## v0.6.0 - Advanced Tracking & Analytics
 
 **Target:** Q4 2026
 
@@ -158,6 +189,7 @@ These are ideas for post-1.0 or community contributions:
 | 0.3.x | Maintenance | 1.0.0 release |
 | 0.4.x | Current | 1.0.0 release |
 | 0.5.x | Planned | 1.0.0 release |
+| 0.6.x | Planned | 1.0.0 release |
 | 1.0.0 | Planned | 2 years after release |
 
 ---

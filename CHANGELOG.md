@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- `LETTERMINT_TRACKING` setting: `False` stops storing messages and events while the models, admin and webhook URL stay; the webhook keeps answering `200`
+- `X-Lettermint-Track: false` header (also `0`, `no`, `off`) sends a message without recording it; the header is not passed on. `send_bulk()` and `send_bulk_mail()` take `track=False` for a whole send, and `BulkItem.track` says whether a message was to be recorded
+- `LETTERMINT_TRACK_UNKNOWN_MESSAGES` setting: `False` drops webhook events for messages this app did not record
+- `LETTERMINT_TRACKING_SUBJECT`, `LETTERMINT_TRACKING_EVENT_DATA` (`full`, `minimal`, `none`) and `LETTERMINT_TRACKING_RECIPIENTS` (`plain`, `hashed`, keyed with `LETTERMINT_TRACKING_HASH_KEY` or `SECRET_KEY`) limit what tracking stores; `LmEmailEvent.objects.for_recipient()` hashes its argument in hashed mode, and so does the admin search for a complete address
+- `LETTERMINT_TRACKING_RETENTION_DAYS` setting and the `lettermint_prune` management command (`--days`, `--dry-run`)
+- System checks `lettermint_django.W003` (tracking on without a retention, reported by `check --deploy`) and `lettermint_django.E001` (invalid privacy setting)
+- Privacy section in the tracking guide
+
+All defaults keep the behaviour of 0.4.
+
 ---
 
 ## [0.4.0b1] - 2026-09-03

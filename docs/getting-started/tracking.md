@@ -1,6 +1,6 @@
 # Email Tracking
 
-Track delivery status and bounces for every email you send through Lettermint. Tracking is optional and is switched on by adding `lettermint_django` to `INSTALLED_APPS`. Without it, the backend only sends.
+Track delivery status and bounces for every email you send through Lettermint. Tracking is optional and is switched on by adding `lettermint_django` to `INSTALLED_APPS`. Without it, the backend only sends. What it stores, and for how long, is yours to limit: see [privacy](#privacy).
 
 ## How it works
 
@@ -87,7 +87,7 @@ One row per email sent through the backend.
 | `status_changed_at` | Timestamp of the event that set the current status |
 | `created_at` | When the message was sent |
 
-Message bodies and attachments are not stored.
+Message bodies, headers and attachments are not stored. Recipients and subject follow the [privacy settings](#privacy).
 
 ### `LmEmailEvent`
 
@@ -102,7 +102,7 @@ One row per webhook event. A message with several recipients gets one event per 
 | `recipient` | Recipient address this event is about |
 | `reason` | Human-readable reason: the SMTP response for bounces, `reason` for failures |
 | `reason_code` | Enhanced SMTP status code for bounces (e.g. `5.1.1`), `reason_code` for failures |
-| `data` | Raw `data` object of the webhook payload |
+| `data` | Raw `data` object of the webhook payload, trimmed by `LETTERMINT_TRACKING_EVENT_DATA` |
 | `occurred_at` | Event timestamp from Lettermint |
 
 ### What happens per event
@@ -159,6 +159,78 @@ LmEmailEvent.objects.bounces()
 LmEmailEvent.objects.from_bulk(bulk_id)
 ```
 
+## Privacy
+
+Tracking stores personal data: recipient addresses in plain text, and subjects, which often carry a name or a code. By default it also records every message, keeps the raw webhook `data`, stores events for messages it never sent, and deletes nothing. Each of those can be turned down.
+
+### Switching it off
+
+```python
+LETTERMINT_TRACKING = False
+```
+
+Nothing new is stored. The models, admin and webhook URL stay, and the webhook still answers `200`, so Lettermint does not retry. Existing rows are untouched.
+
+### Leaving messages out
+
+```python
+msg.extra_headers["X-Lettermint-Track"] = "false"          # one message (also 0, no, off)
+send_bulk(messages, track=False)                             # a whole bulk send
+send_bulk_mail(recipients, subject, ..., track=False)
+```
+
+The message is sent as usual but gets no `LmEmailMessage`. Its webhook events are still stored, as events of an unknown message, unless you also set:
+
+```python
+LETTERMINT_TRACK_UNKNOWN_MESSAGES = False
+```
+
+Then an event is only stored when its `message_id` belongs to a recorded message. Everything else is answered with `200` and dropped, and a retry of it is dropped again. The message row is written right after Lettermint accepts the send, so events normally find it. The exception is a send inside a database transaction that is still open when the first event arrives (`ATOMIC_REQUESTS`, or a long task wrapped in `transaction.atomic()`): the row is not visible yet and that event is lost. Status then catches up with the next event.
+
+### Storing less
+
+| Setting | Values | Effect |
+|---|---|---|
+| `LETTERMINT_TRACKING_SUBJECT` | `True` (default), `False` | `False` stores `""` as the subject and drops `subject` from event `data` |
+| `LETTERMINT_TRACKING_EVENT_DATA` | `"full"` (default), `"minimal"`, `"none"` | `"minimal"` keeps `message_id`, `tag`, `tags`, `reason`, `reason_code` and `response.enhanced_status_code`; `"none"` keeps `{}` |
+| `LETTERMINT_TRACKING_RECIPIENTS` | `"plain"` (default), `"hashed"` | `"hashed"` stores each address in `to`, `cc`, `bcc`, `LmEmailEvent.recipient` and event `data` as a hex HMAC-SHA256 |
+
+`reason` and `reason_code` keep their own columns in every mode, so bounce handling is unaffected. They hold the receiving server's own words, which sometimes include the address.
+
+Hashed addresses are normalised first (display name dropped, trimmed, lowercased) and keyed with `LETTERMINT_TRACKING_HASH_KEY`, falling back to `SECRET_KEY`. `LmEmailEvent.objects.for_recipient("ann@example.com")` hashes its argument, so lookups by address keep working. Rotating the key, or `SECRET_KEY` when you rely on the fallback, makes every earlier row unfindable by address; set a dedicated key if you rotate `SECRET_KEY`. The admin shows the hashes, but its search box hashes a complete address you type, so searching for `ann@example.com` still finds her messages and events. Partial searches such as a domain find nothing. The settings apply to rows written from the moment they are set; existing rows are not rewritten.
+
+### Retention
+
+```python
+LETTERMINT_TRACKING_RETENTION_DAYS = 40
+```
+
+```bash
+python manage.py lettermint_prune              # uses the setting
+python manage.py lettermint_prune --days 90    # overrides it
+python manage.py lettermint_prune --dry-run    # counts only
+```
+
+The command deletes messages created before the cutoff together with all their events, and every other event that occurred before it (which covers events of unknown messages). Without `--days` and without the setting it deletes nothing. Run it daily from cron or your task scheduler; the package does not schedule it.
+
+Lettermint keeps its own copy of your messages for a limited period, which makes a retention at or below that period a natural choice: whatever a support question needs is then still in the Lettermint dashboard. Check Lettermint's documentation for the current period rather than relying on a number here.
+
+`manage.py check --deploy` reports `lettermint_django.W003` while tracking is on and no retention is set.
+
+### For bounce handling only
+
+A site that only needs bounces and delivery status, and no mail content:
+
+```python
+LETTERMINT_TRACK_UNKNOWN_MESSAGES = False
+LETTERMINT_TRACKING_SUBJECT = False
+LETTERMINT_TRACKING_EVENT_DATA = "minimal"
+LETTERMINT_TRACKING_RECIPIENTS = "hashed"
+LETTERMINT_TRACKING_RETENTION_DAYS = 40
+```
+
+Add `X-Lettermint-Track: false` to mail nothing ever looks up, such as login codes.
+
 ## Signals
 
 Import from `lettermint_django.signals`. All signals pass `sender=LmEmailEvent` and the keyword arguments `event` (the stored `LmEmailEvent`) and `email_message` (the matching `LmEmailMessage`, or `None`).
@@ -205,6 +277,6 @@ The system check `lettermint_django.W002` warns at `manage.py check` and `runser
 ## Behaviour details
 
 - **Sending never depends on tracking.** If storing the sent message fails, the error is logged and the email still counts as sent.
-- **Unknown messages are kept.** Events for messages that were not sent through this app are stored with `email_message=None`.
+- **Unknown messages are kept** by default. Events for messages that were not sent through this app are stored with `email_message=None`; `LETTERMINT_TRACK_UNKNOWN_MESSAGES = False` drops them.
 - **Response codes.** The endpoint returns `400` for an invalid signature, stale timestamp or malformed JSON, and `200` otherwise. A database error results in a `5xx`, after which Lettermint retries the delivery (12 attempts over about 14 hours).
 - **Logging.** Rejected deliveries and tracking failures are logged to the `lettermint_django` logger.

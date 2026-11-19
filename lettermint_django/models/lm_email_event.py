@@ -6,6 +6,8 @@ from typing import Self
 
 from django.db import models
 
+from ..tracking.privacy_settings import recipient_mode
+from ..tracking.store_address import store_address
 from .choices import BOUNCE_EVENTS, EVENT_STATUS_MAP
 from .lm_email_message import LmEmailMessage
 
@@ -14,7 +16,13 @@ class LmEmailEventQuerySet(models.QuerySet):
     """Filters for webhook events. One event per recipient per status change."""
 
     def for_recipient(self, email: str) -> Self:
-        """Events about this address (case-insensitive), across all messages."""
+        """Events about this address (case-insensitive), across all messages.
+
+        With ``LETTERMINT_TRACKING_RECIPIENTS = "hashed"`` the address is hashed
+        first, so callers pass a plain address either way.
+        """
+        if recipient_mode() == "hashed":
+            return self.filter(recipient=store_address(email))
         return self.filter(recipient__iexact=email)
 
     def bounces(self) -> Self:

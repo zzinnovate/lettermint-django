@@ -3,7 +3,7 @@
 from django.contrib import admin
 
 from ..models import LmEmailEvent
-from .mixins import ReadOnlyMixin
+from .mixins import HashedRecipientSearchMixin, ReadOnlyMixin
 
 
 class LmEmailEventInline(ReadOnlyMixin, admin.TabularInline):
@@ -17,7 +17,7 @@ class LmEmailEventInline(ReadOnlyMixin, admin.TabularInline):
 
 
 @admin.register(LmEmailEvent)
-class LmEmailEventAdmin(ReadOnlyMixin, admin.ModelAdmin):
+class LmEmailEventAdmin(HashedRecipientSearchMixin, ReadOnlyMixin, admin.ModelAdmin):
     list_display = ("occurred_at", "event", "recipient", "message_id", "reason_code")
     list_filter = ("event",)
     search_fields = ("event_id", "message_id", "recipient", "reason", "reason_code")

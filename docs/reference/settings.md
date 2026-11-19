@@ -20,6 +20,20 @@ All settings are read from your Django settings module.
 | `LETTERMINT_WEBHOOK_PATH` | `str` | `lettermint/message-events/` | Full path of the webhook endpoint, with `lettermint_django.urls` included at the root |
 | `LETTERMINT_WEBHOOK_SECRET` | `str` | `None` | Signing secret of your Lettermint webhook. Required by the webhook endpoint when [tracking](../getting-started/tracking.md) is installed |
 
+## Tracking and privacy
+
+Only read when `lettermint_django` is in `INSTALLED_APPS`. Every default keeps what earlier versions stored; see [privacy](../getting-started/tracking.md#privacy).
+
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| `LETTERMINT_TRACKING` | `bool` | `True` | `False` stores nothing new. Models, admin and webhook URL stay; the webhook still answers `200` |
+| `LETTERMINT_TRACK_UNKNOWN_MESSAGES` | `bool` | `True` | `False` ignores webhook events for messages this app did not record, including those sent with `X-Lettermint-Track: false` |
+| `LETTERMINT_TRACKING_SUBJECT` | `bool` | `True` | `False` stores an empty `LmEmailMessage.subject` and leaves `subject` out of event `data` |
+| `LETTERMINT_TRACKING_EVENT_DATA` | `str` | `"full"` | What `LmEmailEvent.data` keeps: `"full"`, `"minimal"` (message id, tags, reason fields and the enhanced status code) or `"none"` |
+| `LETTERMINT_TRACKING_RECIPIENTS` | `str` | `"plain"` | `"hashed"` stores recipient addresses as a keyed hash |
+| `LETTERMINT_TRACKING_HASH_KEY` | `str` | `SECRET_KEY` | Key for `"hashed"` recipients. Changing it makes stored hashes unfindable |
+| `LETTERMINT_TRACKING_RETENTION_DAYS` | `int` | `None` | Days `lettermint_prune` keeps; `None` keeps everything |
+
 ## Notes
 
 - `LETTERMINT_ROUTE` sets a default route for all messages. Individual messages can override this using `extra_headers["X-Lettermint-Route"]`.
@@ -28,7 +42,10 @@ All settings are read from your Django settings module.
 - `LETTERMINT_BASE_URL` is rarely needed. Only set this if you are testing against a custom or staging Lettermint environment.
 - `LETTERMINT_TIMEOUT` accepts any value accepted by the underlying `lettermint` SDK (integer seconds).
 - `LETTERMINT_WEBHOOK_PATH` is read when `lettermint_django.urls` is imported. Include those URLs at the root of your URLconf; the setting is the whole path. Register exactly that path, trailing slash included, in Lettermint.
-- `LETTERMINT_WEBHOOK_SECRET` is only read by the webhook view. The view raises `ImproperlyConfigured` when it is missing, so a misconfigured endpoint fails loudly instead of silently rejecting deliveries. Tracking itself has no on/off setting: it is active whenever `lettermint_django` is in `INSTALLED_APPS`.
+- `LETTERMINT_WEBHOOK_SECRET` is only read by the webhook view. The view raises `ImproperlyConfigured` when it is missing, so a misconfigured endpoint fails loudly instead of silently rejecting deliveries.
+- `LETTERMINT_TRACKING = False` is the way to switch tracking off without losing the admin or orphaning the tables; removing the app from `INSTALLED_APPS` also stops it, but drops both.
+- `extra_headers["X-Lettermint-Track"] = "false"` (also `0`, `no`, `off`) keeps a single message out of tracking. The header is not passed on.
+- An unknown value for `LETTERMINT_TRACKING_EVENT_DATA`, `LETTERMINT_TRACKING_RECIPIENTS` or `LETTERMINT_TRACKING_RETENTION_DAYS` is reported by system check `lettermint_django.E001`.
 
 ## Example
 

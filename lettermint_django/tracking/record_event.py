@@ -12,6 +12,9 @@ from django.utils.dateparse import parse_datetime
 
 from .emit_signals import emit_signals
 from .enabled import is_tracking_enabled
+from .privacy_settings import track_unknown_messages
+from .store_address import store_address
+from .store_event_data import store_event_data
 
 if TYPE_CHECKING:
     from ..models import LmEmailEvent
@@ -26,7 +29,10 @@ def record_event(payload: Mapping[str, object]) -> tuple[LmEmailEvent | None, bo
 
     Returns ``(event, created)``. ``(None, False)`` means the payload was
     ignored: tracking is disabled, the payload is not an outbound message
-    event (no ``data.message_id``), or the event is in ``IGNORED_EVENTS``.
+    event (no ``data.message_id``), the event is in ``IGNORED_EVENTS``, or
+    ``LETTERMINT_TRACK_UNKNOWN_MESSAGES`` is off and no ``LmEmailMessage``
+    has that ``message_id``. What is stored of the recipient and ``data``
+    follows the privacy settings.
     Duplicate deliveries (same event id) return the existing event with
     ``created=False`` and do not emit signals again.
 
@@ -58,6 +64,8 @@ def record_event(payload: Mapping[str, object]) -> tuple[LmEmailEvent | None, bo
         email_message = (
             LmEmailMessage.objects.select_for_update().filter(message_id=str(message_id)).first()
         )
+        if email_message is None and not track_unknown_messages():
+            return None, False
         # Column lengths are enforced by PostgreSQL; never let an unexpectedly long
         # value from Lettermint turn into a 500 and a retry storm.
         event, created = LmEmailEvent.objects.get_or_create(
@@ -66,10 +74,10 @@ def record_event(payload: Mapping[str, object]) -> tuple[LmEmailEvent | None, bo
                 "email_message": email_message,
                 "message_id": str(message_id),
                 "event": event_type[:64],
-                "recipient": str(data.get("recipient") or "")[:254],
+                "recipient": store_address(data.get("recipient"))[:254],
                 "reason": str(reason),
                 "reason_code": str(reason_code)[:64],
-                "data": dict(data),
+                "data": store_event_data(data),
                 "occurred_at": _parse_timestamp(payload.get("timestamp")),
             },
         )

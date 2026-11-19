@@ -73,6 +73,8 @@ Override per send with `route=`, and per message with the `X-Lettermint-Route` h
 
 `tag=` on `send_bulk()` works the same way: it tags the whole send unless a message carries its own `X-Lettermint-Tag`.
 
+`track=False` on `send_bulk()` or `send_bulk_mail()` sends without creating `LmEmailMessage` rows. With the default `track=True`, a message carrying `X-Lettermint-Track: false` is still left out on its own. A prepared payload dict has lost that header, so for dicts `track=` alone decides. Without rows there is nothing for `from_bulk()` to find later.
+
 A prepared payload dict is left as it was composed: a `route` or `tag` already in it stands, and the send-wide value only fills in what the payload left open.
 
 ## Templates
@@ -221,6 +223,8 @@ for item in result.sent:
 ```
 
 A single resend is the same call with one recipient, or a plain `send_mail`; that message then has an empty `bulk_id`.
+
+With `LETTERMINT_TRACKING_RECIPIENTS = "hashed"` this all keeps working, because it joins on `bulk_id` and `message_id`; only the addresses in `to` are hashes. With a retention set, rows older than it are gone, so follow up within that window.
 
 Two things to know when reading these statuses:
 
