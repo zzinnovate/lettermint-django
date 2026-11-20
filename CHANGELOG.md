@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+---
+
+## [0.5.0b1] - 2026-11-20
+
+Builds on 0.4.0b2; there is no 0.4.0 final release.
+
 ### Changed
 
 - **Breaking:** requires `lettermint>=3,<4`; the 2.x SDK no longer receives fixes. The backend creates `Lettermint(sending_token=LETTERMINT_API_KEY)`, sends the `build_payload()` dict with `emails.send()` and batches with `emails.send_batch()`. Settings and the backend's own API are unchanged
