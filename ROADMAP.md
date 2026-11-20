@@ -2,8 +2,8 @@
 
 lettermint-django is actively developed with a clear path to a stable 1.0 release. Below is our planned evolution.
 
-**Current Version:** v0.4.x (email backend, tracking, bulk sending, privacy controls)  
-**Target:** v0.3.x → v0.4.x → v0.5.x → v1.0.0 (full feature set)
+**Current Version:** v0.5.x (email backend, tracking, bulk sending, privacy controls, Lettermint SDK 3)  
+**Target:** v0.3.x → v0.4.x → v0.5.x → v0.6.x → v1.0.0 (full feature set)
 
 ---
 
@@ -88,7 +88,33 @@ lettermint-django is actively developed with a clear path to a stable 1.0 releas
 
 ---
 
-## v0.5.0 - Advanced Tracking & Analytics
+## v0.5.0 - Lettermint SDK 3
+
+**Target:** Q4 2026
+
+**Goal:** Move to the 3.x Lettermint SDK, since 2.x no longer receives fixes, and ship the v0.4.0 work as a final release (0.4.0 only went out as betas).
+
+### Features
+
+- [x] **SDK 3**: Requires `lettermint>=3,<4`; sends through `emails.send()` and `emails.send_batch()` with the project's sending token
+- [x] **Webhook verification**: `Webhook.verify(raw_body, headers)` with both `X-Lettermint-Signature` and `X-Lettermint-Delivery`; rejections are logged with the SDK's reason
+- [x] **Failure reasons**: `BulkItem.reason` keeps Lettermint's HTTP status and response body with the 3.x exceptions
+- [x] **Documentation**: SDK exception types that can appear in `BulkItem.error`
+- [ ] **Production testing**: 0.5.0b1 in production use against the live Lettermint API, covering single sends, bulk sends and webhook delivery, before 0.5.0 final
+
+### Breaking Changes
+
+- Requires `lettermint>=3,<4`
+- `BulkItem.error` holds the 3.x SDK exceptions, which have `status` and `body` instead of `status_code` and `response_body`
+- Webhook deliveries without an `X-Lettermint-Delivery` header are rejected
+
+### Non-Goals
+
+- Supporting lettermint 2.x alongside 3.x
+
+---
+
+## v0.6.0 - Advanced Tracking & Analytics
 
 **Target:** Q4 2026
 

@@ -228,7 +228,8 @@ lettermint_django/
   - Signal names frozen after v0.3.0
   - Model fields may be added (with migrations) but not removed/renamed
 - **v0.4.x:** Bulk sending (batch endpoint, tags)
-- **v0.5.x:** Advanced tracking (opens, clicks)
+- **v0.5.x:** Lettermint SDK 3 (breaking: requires `lettermint>=3`)
+- **v0.6.x:** Advanced tracking (opens, clicks)
 - **v1.0.0:** Stable (production-ready, 2-year support)
 
 **Backward Compatibility:**
