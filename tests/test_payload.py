@@ -10,6 +10,8 @@ from django.core.mail import EmailMessage, EmailMultiAlternatives
 from lettermint_django import LettermintEmailBackend
 from lettermint_django.models import LmEmailMessage
 
+from .conftest import sent_payload
+
 
 def full_message():
     msg = EmailMultiAlternatives(
@@ -84,7 +86,7 @@ class TestSendSingle:
         assert stored.tag == "campaign-1"
         assert stored.route == "marketing"
         assert LmEmailMessage.objects.tagged("campaign-1").count() == 1
-        mock_lettermint[2].tag.assert_called_once_with("campaign-1")
+        assert sent_payload(mock_lettermint[2])["tag"] == "campaign-1"
 
     def test_no_recipients_returns_none(self, mock_lettermint):
         backend = LettermintEmailBackend()
@@ -101,23 +103,23 @@ class TestSendSingle:
 
 class TestSendPayloads:
     def test_posts_batch_and_returns_responses(self, mock_lettermint):
-        _, _, builder = mock_lettermint
-        builder.send_batch.return_value = [{"message_id": "m1", "status": "pending"}]
+        _, _, emails = mock_lettermint
+        emails.send_batch.return_value = [{"message_id": "m1", "status": "pending"}]
         backend = LettermintEmailBackend()
         payloads = [{"from": "a@example.com", "to": ["b@example.com"], "subject": "S", "text": "B"}]
 
         assert backend.send_payloads(payloads) == [{"message_id": "m1", "status": "pending"}]
-        builder.send_batch.assert_called_once_with(payloads)
+        emails.send_batch.assert_called_once_with(payloads)
 
     def test_empty_is_noop(self, mock_lettermint):
         assert LettermintEmailBackend().send_payloads([]) == []
         mock_lettermint[0].assert_not_called()
 
     def test_does_not_cap_batch_size(self, mock_lettermint):
-        _, _, builder = mock_lettermint
-        builder.send_batch.return_value = []
+        _, _, emails = mock_lettermint
+        emails.send_batch.return_value = []
         LettermintEmailBackend().send_payloads([{"from": "a@example.com"}] * 1200)
-        assert len(builder.send_batch.call_args.args[0]) == 1200
+        assert len(emails.send_batch.call_args.args[0]) == 1200
 
     def test_missing_api_key_raises(self, settings, mock_lettermint):
         settings.LETTERMINT_API_KEY = None

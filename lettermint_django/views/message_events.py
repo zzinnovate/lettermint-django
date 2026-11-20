@@ -1,7 +1,8 @@
 """``message_events``: webhook endpoint that receives message events from Lettermint.
 
-Signature verification is done by the Lettermint SDK (HMAC-SHA256 with a
-timestamp tolerance). Verified events are stored via
+Signature verification is done by the Lettermint SDK (HMAC-SHA256 over the
+raw body with a timestamp tolerance; both ``X-Lettermint-Signature`` and
+``X-Lettermint-Delivery`` are required). Verified events are stored via
 :func:`lettermint_django.tracking.record_event`.
 """
 
@@ -17,6 +18,9 @@ from lettermint import Webhook, WebhookVerificationError
 from ..tracking import record_event
 
 logger = logging.getLogger("lettermint_django")
+
+#: ``WebhookVerificationError.reason`` values that blame the body, not the signature.
+BODY_REASONS = frozenset({"body_invalid", "payload_invalid"})
 
 
 def get_webhook_secret():
@@ -43,18 +47,12 @@ def message_events(request):
     secret = get_webhook_secret()
 
     try:
-        body = request.body.decode("utf-8")
-    except UnicodeDecodeError:
-        return HttpResponseBadRequest("Webhook body must be UTF-8 encoded JSON.")
-
-    try:
-        payload = Webhook(secret).verify_headers(dict(request.headers), body)
+        payload = Webhook(secret).verify(request.body, request.headers)
     except WebhookVerificationError as exc:
-        logger.warning("Rejected Lettermint webhook: %s", exc)
+        logger.warning("Rejected Lettermint webhook (%s): %s", exc.reason, exc)
+        if exc.reason in BODY_REASONS:
+            return HttpResponseBadRequest("Webhook body must be a JSON object.")
         return HttpResponseBadRequest("Invalid webhook signature.")
-
-    if not isinstance(payload, dict):
-        return HttpResponseBadRequest("Webhook body must be a JSON object.")
 
     if payload.get("event") == "webhook.test":
         return JsonResponse({"received": True, "stored": False})

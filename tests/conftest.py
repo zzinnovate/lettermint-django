@@ -46,19 +46,19 @@ def html_email():
 
 @pytest.fixture
 def mock_lettermint():
-    """Patch the Lettermint SDK client with a fluent builder mock."""
+    """Patch the Lettermint SDK client; yields (class mock, client mock, ``client.emails`` mock)."""
     with patch("lettermint.Lettermint") as mock_cls:
         mock_client = MagicMock()
         mock_cls.return_value = mock_client
-        mock_email_builder = MagicMock()
-        mock_client.email = mock_email_builder
-        for method in (
-            "from_", "to", "cc", "bcc", "reply_to", "route",
-            "subject", "text", "html", "headers", "attach", "tag", "metadata",
-        ):
-            getattr(mock_email_builder, method).return_value = mock_email_builder
-        mock_email_builder.send.return_value = {"message_id": "msg_test_1", "status": "pending"}
-        yield mock_cls, mock_client, mock_email_builder
+        mock_emails = mock_client.emails
+        mock_emails.send.return_value = {"message_id": "msg_test_1", "status": "pending"}
+        yield mock_cls, mock_client, mock_emails
+
+
+def sent_payload(mock_emails):
+    """The message dict of the only ``emails.send`` call."""
+    mock_emails.send.assert_called_once()
+    return mock_emails.send.call_args.args[0]
 
 
 def sign_webhook(body, secret=WEBHOOK_SECRET, timestamp=None):

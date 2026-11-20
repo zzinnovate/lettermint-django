@@ -1,5 +1,7 @@
 """Tests for the Lettermint webhook endpoint."""
 
+import hashlib
+import hmac
 import json
 import logging
 import time
@@ -18,7 +20,7 @@ from lettermint_django.signals import (
     lm_email_failed,
 )
 
-from .conftest import sign_webhook, webhook_payload
+from .conftest import WEBHOOK_SECRET, sign_webhook, webhook_payload
 
 URL = "/lettermint/message-events/"
 DELIVERED_RESPONSE = {"status_code": 250, "enhanced_status_code": "2.0.0", "content": "250 2.0.0 OK"}
@@ -61,11 +63,37 @@ class TestVerification:
         )
         assert response.status_code == 400
 
+    def test_rejects_missing_delivery_header_and_logs_the_reason(self, client, caplog):
+        body = json.dumps(webhook_payload("message.delivered"))
+        headers = sign_webhook(body)
+        del headers["X-Lettermint-Delivery"]
+        with caplog.at_level(logging.WARNING, logger="lettermint_django"):
+            response = client.post(URL, data=body, content_type="application/json", headers=headers)
+
+        assert response.status_code == 400
+        assert response.content == b"Invalid webhook signature."
+        assert "delivery_header_missing" in caplog.text
+        assert LmEmailEvent.objects.count() == 0
+
     def test_rejects_invalid_json(self, post_webhook):
-        assert post_webhook("not json").status_code == 400
+        response = post_webhook("not json")
+        assert response.status_code == 400
+        assert response.content == b"Webhook body must be a JSON object."
 
     def test_rejects_non_object_json(self, post_webhook):
-        assert post_webhook("[1, 2]").status_code == 400
+        response = post_webhook("[1, 2]")
+        assert response.status_code == 400
+        assert response.content == b"Webhook body must be a JSON object."
+
+    def test_rejects_signed_body_that_is_not_utf8(self, client):
+        body = b'{"event": "\xff"}'
+        timestamp = str(int(time.time()))
+        digest = hmac.new(WEBHOOK_SECRET.encode(), timestamp.encode() + b"." + body, hashlib.sha256).hexdigest()
+        headers = {"X-Lettermint-Signature": f"t={timestamp},v1={digest}", "X-Lettermint-Delivery": timestamp}
+        response = client.post(URL, data=body, content_type="application/json", headers=headers)
+
+        assert response.status_code == 400
+        assert response.content == b"Webhook body must be a JSON object."
 
     def test_rejects_get(self, client):
         assert client.get(URL).status_code == 405
@@ -299,8 +327,8 @@ class TestEventStorage:
 
     def test_bulk_sent_messages_are_found_through_their_bulk(self, post_webhook, settings, mock_lettermint):
         settings.EMAIL_BACKEND = "lettermint_django.LettermintEmailBackend"
-        _, _, builder = mock_lettermint
-        builder.send_batch.side_effect = lambda payloads: [
+        _, _, emails = mock_lettermint
+        emails.send_batch.side_effect = lambda payloads: [
             {"message_id": f"bulk_msg_{i}", "status": "pending"} for i, _ in enumerate(payloads)
         ]
         from django.core.mail import EmailMessage

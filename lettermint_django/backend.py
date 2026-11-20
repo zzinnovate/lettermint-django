@@ -83,7 +83,7 @@ class LettermintEmailBackend(BaseEmailBackend):
                 "The 'lettermint' package is not installed. Run: pip install lettermint"
             ) from exc
 
-        client_kwargs: dict[str, Any] = {"api_token": self.api_token}
+        client_kwargs: dict[str, Any] = {"sending_token": self.api_token}
         if self.base_url:
             client_kwargs["base_url"] = self.base_url
         if self.timeout is not None:
@@ -139,8 +139,7 @@ class LettermintEmailBackend(BaseEmailBackend):
             return None
 
         payload = self.build_payload(email_message)
-        mail = self._apply_payload(self.connection.email, payload)
-        response = mail.send()
+        response = self.connection.emails.send(payload)
         if self._resolve_track(email_message):
             record_sent(payload, response)
         return response
@@ -161,14 +160,14 @@ class LettermintEmailBackend(BaseEmailBackend):
             return []
         if self.connection is None and self.open() is False:
             raise ImproperlyConfigured("Lettermint connection could not be opened.")
-        return self.connection.email.send_batch(list(payloads))
+        return self.connection.emails.send_batch(list(payloads))
 
     def build_payload(self, email_message: EmailMessage) -> SendMailRequest:
         """Translate a Django EmailMessage into the dict Lettermint's send API accepts.
 
         Keys: ``from``, ``to``, ``cc``, ``bcc``, ``reply_to``, ``route``,
         ``subject``, ``text``, ``html``, ``headers``, ``tag`` and base64
-        ``attachments``. The same dict feeds the single-send builder and the
+        ``attachments``. The same dict goes to the single-send and the
         batch endpoint, so both paths produce identical messages, and a
         subclass overriding ``_get_passthrough_headers()`` affects both.
 
@@ -220,33 +219,6 @@ class LettermintEmailBackend(BaseEmailBackend):
             payload["attachments"] = attachments
 
         return payload
-
-    @staticmethod
-    def _apply_payload(mail: Any, payload: Mapping[str, Any]) -> Any:
-        """Feed a payload dict into the SDK's fluent email builder."""
-        mail = mail.from_(payload["from"])
-        if "to" in payload:
-            mail = mail.to(*payload["to"])
-        if "cc" in payload:
-            mail = mail.cc(*payload["cc"])
-        if "bcc" in payload:
-            mail = mail.bcc(*payload["bcc"])
-        if "reply_to" in payload:
-            mail = mail.reply_to(*payload["reply_to"])
-        if "route" in payload:
-            mail = mail.route(payload["route"])
-        mail = mail.subject(payload["subject"])
-        if "text" in payload:
-            mail = mail.text(payload["text"])
-        if "html" in payload:
-            mail = mail.html(payload["html"])
-        if "headers" in payload:
-            mail = mail.headers(payload["headers"])
-        if "tag" in payload:
-            mail = mail.tag(payload["tag"])
-        for attachment in payload.get("attachments", []):
-            mail = mail.attach(attachment["filename"], attachment["content"])
-        return mail
 
     def _resolve_route(self, email_message: EmailMessage) -> str | None:
         """Resolve route: per-message header takes priority over backend default."""

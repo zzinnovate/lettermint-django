@@ -24,11 +24,11 @@ Releases the SDK client. Called automatically after sending.
 
 Sends a list of `EmailMessage` objects. Returns the number of messages successfully sent.
 
-Each message is translated with `build_payload()` and sent through the SDK's single-send builder.
+Each message is translated with `build_payload()` and sent as that dict with the SDK's `emails.send()`.
 
 ### `send_single(email_message)`
 
-Sends one message and returns the Lettermint response dict (`message_id`, `status`), or `None` when the message has no recipients. SDK errors propagate. `_send()` is kept as an alias.
+Sends one message and returns the Lettermint response dict (`message_id`, `status`), or `None` when the message has no recipients. SDK errors (`lettermint.LettermintError` subclasses) propagate. `_send()` is kept as an alias.
 
 ### `build_payload(email_message)`
 

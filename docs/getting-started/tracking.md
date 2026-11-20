@@ -264,11 +264,11 @@ When `django.contrib.admin` is installed, both models appear under **Lettermint*
 
 The endpoint is CSRF-exempt because every delivery is signed. Before anything is read from the body or written to the database, a delivery must pass the checks the Lettermint SDK performs:
 
-1. `X-Lettermint-Signature` and `X-Lettermint-Delivery` headers must be present.
+1. `X-Lettermint-Signature` and `X-Lettermint-Delivery` headers must be present, and the delivery header must equal the signed timestamp.
 2. The delivery timestamp must be within five minutes of now, which blocks replaying a captured request.
 3. The HMAC-SHA256 signature over the timestamp and the raw body must match `LETTERMINT_WEBHOOK_SECRET`, compared in constant time.
 
-Anything else gets a `400` and one warning line in the `lettermint_django` log. A valid delivery that arrives twice within the window is a no-op because of the unique event id. Without `LETTERMINT_WEBHOOK_SECRET` the view raises `ImproperlyConfigured` on every request: it fails closed and never accepts an unsigned delivery.
+Anything else gets a `400` and one warning line in the `lettermint_django` log, naming the SDK's reason (for example `signature_mismatch` or `delivery_header_missing`). A valid delivery that arrives twice within the window is a no-op because of the unique event id. Without `LETTERMINT_WEBHOOK_SECRET` the view raises `ImproperlyConfigured` on every request: it fails closed and never accepts an unsigned delivery.
 
 What stays with you: keep the secret out of the repository, regenerate it in the Lettermint dashboard if it leaks, serve the endpoint over HTTPS (Lettermint requires it), and add rate limiting at your proxy if log noise from bots bothers you.
 

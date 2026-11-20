@@ -6,6 +6,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import EmailMessage, EmailMultiAlternatives
 
 from lettermint_django import LettermintEmailBackend
+from .conftest import sent_payload
 
 
 class TestLettermintEmailBackendInit:
@@ -72,7 +73,7 @@ class TestLettermintEmailBackendOpen:
         result = backend.open()
         assert result is True
         assert backend.connection is mock_client
-        mock_cls.assert_called_once_with(api_token="lm_key")
+        mock_cls.assert_called_once_with(sending_token="lm_key")
 
     def test_open_passes_base_url(self, settings, mock_lettermint):
         mock_cls, _, _ = mock_lettermint
@@ -80,7 +81,7 @@ class TestLettermintEmailBackendOpen:
         settings.LETTERMINT_BASE_URL = "https://custom.api.com"
         backend = LettermintEmailBackend()
         backend.open()
-        mock_cls.assert_called_once_with(api_token="lm_key", base_url="https://custom.api.com")
+        mock_cls.assert_called_once_with(sending_token="lm_key", base_url="https://custom.api.com")
 
     def test_open_passes_timeout(self, settings, mock_lettermint):
         mock_cls, _, _ = mock_lettermint
@@ -88,7 +89,7 @@ class TestLettermintEmailBackendOpen:
         settings.LETTERMINT_TIMEOUT = 45
         backend = LettermintEmailBackend()
         backend.open()
-        mock_cls.assert_called_once_with(api_token="lm_key", timeout=45.0)
+        mock_cls.assert_called_once_with(sending_token="lm_key", timeout=45.0)
 
     def test_open_twice_returns_false(self, settings, mock_lettermint):
         mock_cls, mock_client, _ = mock_lettermint
@@ -118,28 +119,30 @@ class TestLettermintEmailBackendClose:
 
 class TestLettermintEmailBackendSendMessages:
     def test_sends_simple_email(self, settings, mock_lettermint, simple_email):
-        _, _, mock_builder = mock_lettermint
+        _, _, mock_emails = mock_lettermint
         settings.LETTERMINT_API_KEY = "lm_key"
         backend = LettermintEmailBackend()
         count = backend.send_messages([simple_email])
         assert count == 1
-        mock_builder.from_.assert_called_once_with("Sender <sender@example.com>")
-        mock_builder.to.assert_called_once_with("recipient@example.com")
-        mock_builder.subject.assert_called_once_with("Hello")
-        mock_builder.text.assert_called_once_with("Plain text body.")
-        mock_builder.send.assert_called_once()
+        assert sent_payload(mock_emails) == {
+            "from": "Sender <sender@example.com>",
+            "to": ["recipient@example.com"],
+            "subject": "Hello",
+            "text": "Plain text body.",
+        }
 
     def test_sends_html_email(self, settings, mock_lettermint, html_email):
-        _, _, mock_builder = mock_lettermint
+        _, _, mock_emails = mock_lettermint
         settings.LETTERMINT_API_KEY = "lm_key"
         backend = LettermintEmailBackend()
         count = backend.send_messages([html_email])
         assert count == 1
-        mock_builder.html.assert_called_once_with("<h1>Hello HTML</h1>")
-        mock_builder.text.assert_called_once_with("Plain text fallback.")
+        payload = sent_payload(mock_emails)
+        assert payload["html"] == "<h1>Hello HTML</h1>"
+        assert payload["text"] == "Plain text fallback."
 
     def test_sends_cc_bcc(self, settings, mock_lettermint):
-        _, _, mock_builder = mock_lettermint
+        _, _, mock_emails = mock_lettermint
         settings.LETTERMINT_API_KEY = "lm_key"
         msg = EmailMessage(
             subject="Test",
@@ -151,11 +154,12 @@ class TestLettermintEmailBackendSendMessages:
         )
         backend = LettermintEmailBackend()
         backend.send_messages([msg])
-        mock_builder.cc.assert_called_once_with("c@example.com")
-        mock_builder.bcc.assert_called_once_with("d@example.com")
+        payload = sent_payload(mock_emails)
+        assert payload["cc"] == ["c@example.com"]
+        assert payload["bcc"] == ["d@example.com"]
 
     def test_sends_reply_to(self, settings, mock_lettermint):
-        _, _, mock_builder = mock_lettermint
+        _, _, mock_emails = mock_lettermint
         settings.LETTERMINT_API_KEY = "lm_key"
         msg = EmailMessage(
             subject="Test",
@@ -166,24 +170,24 @@ class TestLettermintEmailBackendSendMessages:
         )
         backend = LettermintEmailBackend()
         backend.send_messages([msg])
-        mock_builder.reply_to.assert_called_once_with("reply@example.com")
+        assert sent_payload(mock_emails)["reply_to"] == ["reply@example.com"]
 
     def test_uses_default_route_from_settings(self, settings, mock_lettermint, simple_email):
-        _, _, mock_builder = mock_lettermint
+        _, _, mock_emails = mock_lettermint
         settings.LETTERMINT_API_KEY = "lm_key"
         settings.LETTERMINT_ROUTE = "transactional"
         backend = LettermintEmailBackend()
         backend.send_messages([simple_email])
-        mock_builder.route.assert_called_once_with("transactional")
+        assert sent_payload(mock_emails)["route"] == "transactional"
 
     def test_per_message_route_overrides_default(self, settings, mock_lettermint, simple_email):
-        _, _, mock_builder = mock_lettermint
+        _, _, mock_emails = mock_lettermint
         settings.LETTERMINT_API_KEY = "lm_key"
         settings.LETTERMINT_ROUTE = "default-route"
         simple_email.extra_headers["X-Lettermint-Route"] = "per-message-route"
         backend = LettermintEmailBackend()
         backend.send_messages([simple_email])
-        mock_builder.route.assert_called_once_with("per-message-route")
+        assert sent_payload(mock_emails)["route"] == "per-message-route"
 
     def test_returns_zero_for_empty_list(self, settings):
         settings.LETTERMINT_API_KEY = "lm_key"
@@ -191,13 +195,13 @@ class TestLettermintEmailBackendSendMessages:
         assert backend.send_messages([]) == 0
 
     def test_skips_message_with_no_recipients(self, settings, mock_lettermint):
-        _, _, mock_builder = mock_lettermint
+        _, _, mock_emails = mock_lettermint
         settings.LETTERMINT_API_KEY = "lm_key"
         msg = EmailMessage(subject="No recipients", body="Body", from_email="a@example.com")
         backend = LettermintEmailBackend()
         count = backend.send_messages([msg])
         assert count == 0
-        mock_builder.send.assert_not_called()
+        mock_emails.send.assert_not_called()
 
     def test_returns_count_of_sent(self, settings, mock_lettermint, simple_email, html_email):
         settings.LETTERMINT_API_KEY = "lm_key"
@@ -206,17 +210,17 @@ class TestLettermintEmailBackendSendMessages:
         assert count == 2
 
     def test_fail_silently_swallows_exceptions(self, settings, mock_lettermint, simple_email):
-        _, _, mock_builder = mock_lettermint
+        _, _, mock_emails = mock_lettermint
         settings.LETTERMINT_API_KEY = "lm_key"
-        mock_builder.send.side_effect = Exception("API error")
+        mock_emails.send.side_effect = Exception("API error")
         backend = LettermintEmailBackend(fail_silently=True)
         count = backend.send_messages([simple_email])
         assert count == 0
 
     def test_raises_exception_when_not_silent(self, settings, mock_lettermint, simple_email):
-        _, _, mock_builder = mock_lettermint
+        _, _, mock_emails = mock_lettermint
         settings.LETTERMINT_API_KEY = "lm_key"
-        mock_builder.send.side_effect = Exception("API error")
+        mock_emails.send.side_effect = Exception("API error")
         backend = LettermintEmailBackend(fail_silently=False)
         with pytest.raises(Exception, match="API error"):
             backend.send_messages([simple_email])

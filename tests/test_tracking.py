@@ -10,6 +10,8 @@ from lettermint_django import LettermintEmailBackend
 from lettermint_django.models import LmEmailMessage
 from lettermint_django.tracking.store_address import store_address
 
+from .conftest import sent_payload
+
 
 class TestRecordOnSend:
     def test_send_creates_lm_email_message(self, simple_email, mock_lettermint):
@@ -55,26 +57,26 @@ class TestRecordOnSend:
         assert LmEmailMessage.objects.get().from_email == "Test <noreply@example.com>"
 
     def test_stores_status_from_response(self, simple_email, mock_lettermint):
-        _, _, builder = mock_lettermint
-        builder.send.return_value = {"message_id": "msg_q", "status": "queued"}
+        _, _, emails = mock_lettermint
+        emails.send.return_value = {"message_id": "msg_q", "status": "queued"}
         LettermintEmailBackend().send_messages([simple_email])
         assert LmEmailMessage.objects.get().status == "queued"
 
     def test_scheduled_status_from_response_is_stored(self, simple_email, mock_lettermint):
-        _, _, builder = mock_lettermint
-        builder.send.return_value = {"message_id": "msg_s", "status": "scheduled", "scheduled_at": "2026-09-03T09:00:00Z"}
+        _, _, emails = mock_lettermint
+        emails.send.return_value = {"message_id": "msg_s", "status": "scheduled", "scheduled_at": "2026-09-03T09:00:00Z"}
         LettermintEmailBackend().send_messages([simple_email])
         assert LmEmailMessage.objects.get().status == "scheduled"
 
     def test_unknown_status_falls_back_to_pending(self, simple_email, mock_lettermint):
-        _, _, builder = mock_lettermint
-        builder.send.return_value = {"message_id": "msg_q", "status": "something-new"}
+        _, _, emails = mock_lettermint
+        emails.send.return_value = {"message_id": "msg_q", "status": "something-new"}
         LettermintEmailBackend().send_messages([simple_email])
         assert LmEmailMessage.objects.get().status == "pending"
 
     def test_each_message_in_a_batch_is_recorded(self, mock_lettermint):
-        _, _, builder = mock_lettermint
-        builder.send.side_effect = [
+        _, _, emails = mock_lettermint
+        emails.send.side_effect = [
             {"message_id": "m1", "status": "pending"},
             {"message_id": "m2", "status": "pending"},
         ]
@@ -86,8 +88,8 @@ class TestRecordOnSend:
         assert set(LmEmailMessage.objects.values_list("message_id", flat=True)) == {"m1", "m2"}
 
     def test_response_without_message_id_records_nothing(self, simple_email, mock_lettermint, caplog):
-        _, _, builder = mock_lettermint
-        builder.send.return_value = {}
+        _, _, emails = mock_lettermint
+        emails.send.return_value = {}
         with caplog.at_level(logging.WARNING, logger="lettermint_django"):
             assert LettermintEmailBackend().send_messages([simple_email]) == 1
         assert LmEmailMessage.objects.count() == 0
@@ -127,14 +129,14 @@ class TestTrackingSwitch:
 class TestTrackHeader:
     @pytest.mark.parametrize("value", ["false", "0", "no", "off", " FALSE ", "Off"])
     def test_header_off_records_nothing_and_stays_out_of_the_payload(self, simple_email, mock_lettermint, value):
-        _, _, builder = mock_lettermint
+        _, _, emails = mock_lettermint
         simple_email.extra_headers["X-Lettermint-Track"] = value
         simple_email.extra_headers["X-Custom"] = "kept"
 
         assert LettermintEmailBackend().send_messages([simple_email]) == 1
 
         assert LmEmailMessage.objects.count() == 0
-        builder.headers.assert_called_once_with({"X-Custom": "kept"})
+        assert sent_payload(emails)["headers"] == {"X-Custom": "kept"}
 
     @pytest.mark.parametrize("value", ["true", "1", "yes", ""])
     def test_other_values_keep_tracking(self, simple_email, mock_lettermint, value):

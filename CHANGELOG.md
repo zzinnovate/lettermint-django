@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** requires `lettermint>=3,<4`; the 2.x SDK no longer receives fixes. The backend creates `Lettermint(sending_token=LETTERMINT_API_KEY)`, sends the `build_payload()` dict with `emails.send()` and batches with `emails.send_batch()`. Settings and the backend's own API are unchanged
+- **Breaking:** `BulkItem.error` now holds the 3.x SDK exceptions: `lettermint.APIError` and its subclasses (`ValidationError`, `RateLimitError`, `ServerError`, `AuthenticationError`, `PermissionDeniedError`, `NotFoundError`, `ConflictError`), `APITimeoutError`, `APIConnectionError`, `UnexpectedResponseError`, `RedirectError` and `LettermintValidationError` (a chunk the SDK refused before sending). 2.x's `HttpRequestError` and `ClientError` are gone; code that reads `status_code` or `response_body` off the error should read `status` and `body`. `BulkItem.reason` reads the new attributes, so it still carries Lettermint's HTTP status and response body
+- The webhook endpoint verifies with the SDK's `Webhook.verify(raw_body, headers)`. A delivery must carry both `X-Lettermint-Signature` and `X-Lettermint-Delivery`, and the rejection is logged with the SDK's `reason`
+
 ---
 
 ## [0.4.0b2] - 2026-11-20

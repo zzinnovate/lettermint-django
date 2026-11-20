@@ -30,14 +30,14 @@ def make_messages(count, **kwargs):
 @pytest.fixture
 def batch_api(mock_lettermint):
     """Make the mocked SDK answer batch sends with unique message ids."""
-    _, _, builder = mock_lettermint
+    _, _, emails = mock_lettermint
     counter = itertools.count(1)
 
     def send_batch(payloads):
         return [{"message_id": f"msg_{next(counter)}", "status": "pending"} for _ in payloads]
 
-    builder.send_batch.side_effect = send_batch
-    return builder
+    emails.send_batch.side_effect = send_batch
+    return emails
 
 
 class TestSendBulk:
@@ -130,19 +130,24 @@ class TestSendBulk:
         assert "Invalid sender address" in result.failed[0].reason
 
     def test_rejected_chunk_fails_only_that_chunk_with_lettermint_reason(self, batch_api):
-        from lettermint import HttpRequestError, ValidationError
+        from lettermint import ServerError, ValidationError
 
         batch_api.send_batch.side_effect = [
-            HttpRequestError("Server error", 500, {"error": "upstream down"}),
+            ServerError("Server error", status=500, body={"error": "upstream down"}),
             [{"message_id": "m_ok_1", "status": "pending"}],
-            ValidationError("Validation error: invalid_recipient", "invalid_recipient", {"error": "invalid_recipient", "message": "to.0 is invalid"}),
+            ValidationError(
+                "to.0 is invalid",
+                status=422,
+                errors={"to.0": ["invalid"]},
+                body={"message": "to.0 is invalid", "errors": {"to.0": ["invalid"]}},
+            ),
         ]
         result = send_bulk(make_messages(3), batch_size=1)
 
         assert [item.ok for item in result] == [False, True, False]
         assert result.items[0].reason == "HTTP 500: Server error {'error': 'upstream down'}"
         assert result.items[2].reason == (
-            "HTTP 422: Validation error: invalid_recipient {'error': 'invalid_recipient', 'message': 'to.0 is invalid'}"
+            "HTTP 422: to.0 is invalid {'message': 'to.0 is invalid', 'errors': {'to.0': ['invalid']}}"
         )
         assert batch_api.send.call_count == 0
         assert LmEmailMessage.objects.count() == 1
@@ -201,7 +206,7 @@ class TestSendBulk:
     def test_resending_failed_items_individually_is_one_line(self, batch_api):
         from lettermint import ValidationError
 
-        batch_api.send_batch.side_effect = [ValidationError("bad", "invalid"), [{"message_id": "a", "status": "pending"}], [{"message_id": "b", "status": "pending"}]]
+        batch_api.send_batch.side_effect = [ValidationError("bad", status=422), [{"message_id": "a", "status": "pending"}], [{"message_id": "b", "status": "pending"}]]
         first = send_bulk(make_messages(2))
         assert first.failed_count == 2
 
