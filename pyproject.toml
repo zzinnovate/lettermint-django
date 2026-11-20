@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "lettermint>=2.0.0,<3",
+    "lettermint>=3,<4",
     "django>=4.2",
 ]
 

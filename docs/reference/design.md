@@ -118,7 +118,7 @@ urlpatterns = [
 **Decision:** `send_bulk` sends every chunk it is asked to send, once, and reports per message whether Lettermint accepted it and why not. It never retries, splits a rejected chunk, throttles, or enforces Lettermint's limits.
 
 **Rationale:**
-- Retrying without an idempotency key can send a batch twice; the SDK's `send_batch()` does not expose one
+- Retrying without an idempotency key can send a batch twice, and `send_bulk` does not pass one to the SDK's `send_batch()`
 - The caller's task queue already has retry semantics; a second layer underneath makes behaviour impossible to reason about
 - Lettermint's limits are theirs and change; encoding them would make this package wrong the day they move
 - Isolating one bad message in a rejected chunk is a one-liner for the caller (`send_bulk(failed, batch_size=1)`) and a conscious choice

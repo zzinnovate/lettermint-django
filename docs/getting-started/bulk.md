@@ -117,7 +117,7 @@ Each `BulkItem` has:
 |---|---|
 | `ok` | Lettermint accepted the message |
 | `message_id`, `status` | From Lettermint's response, when accepted |
-| `error` | The exception that stopped the message, else `None` |
+| `error` | The exception that stopped the message, else `None` (see below) |
 | `reason` | That error as text, with Lettermint's HTTP status and response body when there is one |
 | `recipient` | The entry you passed to `send_bulk_mail`, else the first `to` address |
 | `to` | The addresses the message was for, without `cc` and `bcc` |
@@ -126,6 +126,8 @@ Each `BulkItem` has:
 | `email_message` | The Django message it was built from, or `None` for a payload dict |
 
 A bulk send never raises for individual messages. Configuration errors, such as a missing API key, do raise.
+
+`error` is the Lettermint SDK's own exception when the request for the message's chunk failed: `lettermint.APIError` or one of its subclasses (`ValidationError`, `RateLimitError`, `ServerError`, `AuthenticationError`, ...) when Lettermint answered with an error, `APITimeoutError` or `APIConnectionError` when no answer came, `UnexpectedResponseError` for an answer that could not be read, and `LettermintValidationError` when the SDK refused the chunk before sending it. `ImproperlyConfigured` means the message could not be built (an invalid sender), and `RuntimeError` that Lettermint's answer could not be placed on this message.
 
 Store `item.message_id` on your own records to join webhook events back to them later through `LmEmailMessage.objects.get_status()` or `LmEmailEvent.objects.filter(message_id=...)`. Store `result.bulk_id` on the thing you sent for (the event, the guest list) to find the whole send again; see [Following up on a send](#following-up-on-a-send).
 

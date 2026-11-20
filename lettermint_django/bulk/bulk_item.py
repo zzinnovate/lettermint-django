@@ -52,10 +52,10 @@ class BulkItem:
         if self.error is None:
             return ""
         text = str(self.error) or type(self.error).__name__
-        status_code = getattr(self.error, "status_code", None)
-        if status_code and str(status_code) not in text:
-            text = f"HTTP {status_code}: {text}"
-        body = getattr(self.error, "response_body", None)
+        status = getattr(self.error, "status", None)
+        if status and str(status) not in text:
+            text = f"HTTP {status}: {text}"
+        body = getattr(self.error, "body", None)
         if body:
             text = f"{text} {body}"
         return text

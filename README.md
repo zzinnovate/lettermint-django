@@ -22,7 +22,7 @@ Built and maintained by [zzinnovate](https://github.com/zzinnovate). Not affilia
 
 - Python 3.11+ (Django 6 requires Python 3.12+)
 - Django 4.2, 5.x, or 6.x
-- [lettermint](https://github.com/lettermint/lettermint-python) 2.0+
+- [lettermint](https://github.com/lettermint/lettermint-python) 3.0+
 
 ## Install
 
@@ -95,7 +95,7 @@ This project is actively developed with a clear path toward v1.0.0. Our roadmap 
 
 | Setting | Required | Default | Description |
 |---|---|---|---|
-| `LETTERMINT_API_KEY` | Yes | - | Your project API token from the Lettermint dashboard |
+| `LETTERMINT_API_KEY` | Yes | - | Your project sending token from the Lettermint dashboard (not a team token) |
 | `LETTERMINT_BASE_URL` | No | SDK default | Override the Lettermint API base URL |
 | `LETTERMINT_ROUTE` | No | - | Default route applied to all outgoing emails |
 | `LETTERMINT_BULK_ROUTE` | No | - | Route applied to bulk sends, overriding `LETTERMINT_ROUTE` for those messages |

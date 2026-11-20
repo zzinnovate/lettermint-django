@@ -6,7 +6,7 @@ All settings are read from your Django settings module.
 
 | Setting | Type | Description |
 |---|---|---|
-| `LETTERMINT_API_KEY` | `str` | Your project API token from the Lettermint dashboard |
+| `LETTERMINT_API_KEY` | `str` | Your project sending token from the Lettermint dashboard (not a team token) |
 
 ## Optional
 
@@ -40,7 +40,7 @@ Only read when `lettermint_django` is in `INSTALLED_APPS`. Every default keeps w
 - `LETTERMINT_BULK_ROUTE` applies to `send_bulk()` and `send_bulk_mail()` only, so list mail can go out on a different route than the rest of your email. Like `LETTERMINT_ROUTE` it takes a route slug. The type of that route in Lettermint, `transactional` or `broadcast`, is invisible from here. Precedence, highest first: the message's own `X-Lettermint-Route` header (which is what `route=` on `send_bulk_mail()` sets), the `route=` argument of `send_bulk()`, `LETTERMINT_BULK_ROUTE`, `LETTERMINT_ROUTE`, and finally the default route of your API key.
 - `extra_headers["X-Lettermint-Tag"]` sets the Lettermint tag of a message (for example a campaign name). It is stored on `LmEmailMessage.tag` when tracking is installed.
 - `LETTERMINT_BASE_URL` is rarely needed. Only set this if you are testing against a custom or staging Lettermint environment.
-- `LETTERMINT_TIMEOUT` accepts any value accepted by the underlying `lettermint` SDK (integer seconds).
+- `LETTERMINT_TIMEOUT` is a positive number of seconds and covers the whole request, including the response body.
 - `LETTERMINT_WEBHOOK_PATH` is read when `lettermint_django.urls` is imported. Include those URLs at the root of your URLconf; the setting is the whole path. Register exactly that path, trailing slash included, in Lettermint.
 - `LETTERMINT_WEBHOOK_SECRET` is only read by the webhook view. The view raises `ImproperlyConfigured` when it is missing, so a misconfigured endpoint fails loudly instead of silently rejecting deliveries.
 - `LETTERMINT_TRACKING = False` is the way to switch tracking off without losing the admin or orphaning the tables; removing the app from `INSTALLED_APPS` also stops it, but drops both.
