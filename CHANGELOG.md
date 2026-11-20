@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+---
+
+## [0.4.0b2] - 2026-11-20
+
 ### Added
 
 - `LETTERMINT_TRACKING` setting: `False` stops storing messages and events while the models, admin and webhook URL stay; the webhook keeps answering `200`
